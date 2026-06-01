@@ -2,10 +2,11 @@
 //   IMPORTS
 // =======================
 const { Client, GatewayIntentBits } = require("discord.js");
+require("dotenv").config();
 const { Pool } = require("pg");
 
 // =======================
-//   DATABASE (Railway)
+//   DATABASE
 // =======================
 const db = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -59,14 +60,16 @@ client.on("guildMemberAdd", (member) => {
 client.on("messageCreate", async (msg) => {
     if (msg.author.bot) return;
 
-    // 🔹 TEST COMMAND (NO DATABASE)
-    if (msg.content === "!test") {
-        return msg.reply("I hear you loud and clear.");
-    }
-
     const userId = msg.author.id;
     await ensureUser(userId);
-    console.log("User ensured, continuing..."); // DEBUG LINE
+
+    // =======================
+    //   BASIC COMMANDS
+    // =======================
+    if (msg.content === "!ping") return msg.reply("pong");
+    if (msg.content === "!test") return msg.reply("I hear you loud and clear.");
+    if (msg.content === "!coin") return msg.reply(`🪙 ${Math.random() < 0.5 ? "Heads" : "Tails"}`);
+    if (msg.content === "!roll") return msg.reply(`🎲 ${Math.floor(Math.random() * 6) + 1}`);
 
     // =======================
     //   AFK SYSTEM
@@ -86,16 +89,6 @@ client.on("messageCreate", async (msg) => {
         }
     }
 
-    // =======================
-    //   BASIC COMMANDS
-    // =======================
-    if (msg.content === "!ping") return msg.reply("pong");
-    if (msg.content === "!coin") return msg.reply(`🪙 ${Math.random() < 0.5 ? "Heads" : "Tails"}`);
-    if (msg.content === "!roll") return msg.reply(`🎲 ${Math.floor(Math.random() * 6) + 1}`);
-
-    // =======================
-    //   AFK COMMAND
-    // =======================
     if (msg.content.startsWith("!afk")) {
         const reason = msg.content.split(" ").slice(1).join(" ") || "AFK";
         await db.query(`
@@ -198,13 +191,13 @@ client.on("messageCreate", async (msg) => {
     }
 
     // =======================
-    //   CHAT MODE SYSTEM
+    //   CHAT MODE
     // =======================
     if (global.chatMode === undefined) global.chatMode = false;
 
     if (msg.content === "!start chat") {
         global.chatMode = true;
-        return msg.reply("💬 Chat mode enabled! I will reply to everything you say.");
+        return msg.reply("💬 Chat mode enabled!");
     }
 
     if (msg.content === "!end chat") {
@@ -212,11 +205,9 @@ client.on("messageCreate", async (msg) => {
         return msg.reply("🔕 Chat mode disabled.");
     }
 
-    if (global.chatMode) {
-        if (msg.content.startsWith("!")) return;
-
+    if (global.chatMode && !msg.content.startsWith("!")) {
         const replies = [
-            "That's interesting!",
+            "That's interesting.",
             "Tell me more.",
             "Why do you think that?",
             "I get what you're saying.",
