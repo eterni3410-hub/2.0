@@ -1321,7 +1321,7 @@ async function tryEvolve(p) {
     }
 }
 // ===============================
-// GIVEAWAY SYSTEM
+// GIVEAWAY SYSTEM (FIXED + GIF)
 // ===============================
 
 const giveaways = {};
@@ -1338,7 +1338,7 @@ commands.giveaway = async (message, args) => {
         );
     }
 
-    // START
+    // START GIVEAWAY
     if (sub === "start") {
         const time = args[1];
         const prize = args.slice(2).join(" ");
@@ -1355,12 +1355,18 @@ commands.giveaway = async (message, args) => {
         const duration = ms(time);
         if (!duration) return message.reply("⏳ Invalid time format.");
 
-        const embedMsg = await message.channel.send(
-            `🎉 **GIVEAWAY STARTED!** 🎉\n` +
-            `Prize: **${prize}**\n` +
-            `React with 🎉 to enter!\n` +
-            `Ends in **${time}**`
-        );
+        // SEND GIVEAWAY MESSAGE WITH YOUR GIF
+        const embedMsg = await message.channel.send({
+            content:
+                `🎉 **GIVEAWAY STARTED!** 🎉\n` +
+                `Prize: **${prize}**\n` +
+                `React with 🎉 to enter!\n` +
+                `Ends in **${time}**`,
+            files: [
+                // YOUR GIF HERE
+                "https://cdn.discordapp.com/attachments/yourgiflinkhere.gif"
+            ]
+        });
 
         await embedMsg.react("🎉");
 
@@ -1370,6 +1376,7 @@ commands.giveaway = async (message, args) => {
             endTime: Date.now() + duration
         };
 
+        // AUTO END
         setTimeout(async () => {
             const data = giveaways[message.channel.id];
             if (!data) return;
@@ -1403,7 +1410,7 @@ commands.giveaway = async (message, args) => {
         return;
     }
 
-    // END
+    // END GIVEAWAY
     if (sub === "end") {
         const data = giveaways[message.channel.id];
         if (!data) return message.reply("❌ No giveaway running.");
