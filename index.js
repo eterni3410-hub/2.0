@@ -1320,6 +1320,123 @@ async function tryEvolve(p) {
         return p;
     }
 }
+// ===============================
+// GIVEAWAY SYSTEM
+// ===============================
+
+const giveaways = {};
+
+commands.giveaway = async (message, args) => {
+    const sub = args[0];
+
+    if (!sub) {
+        return message.reply(
+            "🎉 **Giveaway Commands:**\n" +
+            "• `>giveaway start <time> <prize>`\n" +
+            "• `>giveaway end`\n" +
+            "• `>giveaway reroll`"
+        );
+    }
+
+    // START
+    if (sub === "start") {
+        const time = args[1];
+        const prize = args.slice(2).join(" ");
+
+        if (!time || !prize) {
+            return message.reply("🎉 **Usage:** `>giveaway start 1m Nitro`");
+        }
+
+        if (giveaways[message.channel.id]) {
+            return message.reply("🎉 A giveaway is already running in this channel.");
+        }
+
+        const ms = require("ms");
+        const duration = ms(time);
+        if (!duration) return message.reply("⏳ Invalid time format.");
+
+        const embedMsg = await message.channel.send(
+            `🎉 **GIVEAWAY STARTED!** 🎉\n` +
+            `Prize: **${prize}**\n` +
+            `React with 🎉 to enter!\n` +
+            `Ends in **${time}**`
+        );
+
+        await embedMsg.react("🎉");
+
+        giveaways[message.channel.id] = {
+            msgId: embedMsg.id,
+            prize,
+            endTime: Date.now() + duration
+        };
+
+        setTimeout(async () => {
+            const data = giveaways[message.channel.id];
+            if (!data) return;
+
+            const msg = await message.channel.messages.fetch(data.msgId).catch(() => null);
+            if (!msg) return;
+
+            const reaction = msg.reactions.cache.get("🎉");
+            if (!reaction) return;
+
+            const users = await reaction.users.fetch();
+            const entries = users.filter(u => !u.bot).map(u => u);
+
+            if (entries.length === 0) {
+                message.channel.send("❌ **No valid entries. Giveaway cancelled.**");
+                delete giveaways[message.channel.id];
+                return;
+            }
+
+            const winner = entries[Math.floor(Math.random() * entries.length)];
+
+            message.channel.send(
+                `🎉 **GIVEAWAY ENDED!** 🎉\n` +
+                `Winner: <@${winner.id}> 🎊\n` +
+                `Prize: **${data.prize}**`
+            );
+
+            delete giveaways[message.channel.id];
+        }, duration);
+
+        return;
+    }
+
+    // END
+    if (sub === "end") {
+        const data = giveaways[message.channel.id];
+        if (!data) return message.reply("❌ No giveaway running.");
+
+        giveaways[message.channel.id].endTime = Date.now();
+        return message.reply("🛑 **Giveaway will end momentarily.**");
+    }
+
+    // REROLL
+    if (sub === "reroll") {
+        const data = giveaways[message.channel.id];
+        if (!data) return message.reply("❌ No giveaway to reroll.");
+
+        const msg = await message.channel.messages.fetch(data.msgId).catch(() => null);
+        if (!msg) return message.reply("❌ Giveaway message not found.");
+
+        const reaction = msg.reactions.cache.get("🎉");
+        if (!reaction) return message.reply("❌ No entries found.");
+
+        const users = await reaction.users.fetch();
+        const entries = users.filter(u => !u.bot).map(u => u);
+
+        if (entries.length === 0) {
+            return message.reply("❌ No valid entries to reroll.");
+        }
+
+        const winner = entries[Math.floor(Math.random() * entries.length)];
+
+        return message.reply(
+            `🔄 **REROLL!**\nNew Winner: <@${winner.id}> 🎉\nPrize: **${data.prize}**`
+        );
+    }
+};
 
 // ===============================
 // READY + LOGIN
