@@ -1364,7 +1364,7 @@ commands.giveaway = async (message, args) => {
                 `Ends in **${time}**`,
             files: [
                 // YOUR GIF HERE
-                "https://cdn.discordapp.com/attachments/yourgiflinkhere.gif"
+                "https://cdn.discordapp.com/attachments/1512149506076967035/1512233267233951896/lv_0_20260604191428.jpg?ex=6a23587a&is=6a2206fa&hm=606f56dc85540d539e280eed5b22765cc29ad5c40ba998974e2fbfd3af1dce0f"
             ]
         });
 
