@@ -72,7 +72,6 @@ const blackjackGames = {};
 // auto-spawn (Pokétwo-style)
 let messageCount = 0;
 const spawnThreshold = 15;
-const channelSpawns = {};
 
 // HELPER FUNCTIONS
 // ===============================
