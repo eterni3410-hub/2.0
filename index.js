@@ -210,6 +210,7 @@ commands.uptime = async (message) => {
     const seconds = totalSeconds % 60;
 
     message.reply(`⏱️ **Uptime:** ${hours}h ${minutes}m ${seconds}s`);
+};
 
 // ===============================
 // MODERATION COMMANDS
@@ -1628,3 +1629,4 @@ client.on("messageCreate", async (message) => {
 // ===============================
 
 client.login(TOKEN);
+   
