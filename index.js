@@ -674,8 +674,9 @@ commands.stand = async (message) => {
         result
     );
 };
+
 // ===============================
-// POKEMON SYSTEM
+// POKEMON SYSTEM (QuickDB v9 SAVING)
 // ===============================
 
 commands.pokemon = async (message) => {
@@ -711,9 +712,8 @@ commands.pokedex = async (message, args) => {
     }
 };
 
-// legacy player spawn (kept)
 commands.spawn = async (message) => {
-    ensurePlayer(message.author.id);
+    const player = await ensurePlayer(message.author.id);
 
     const id = Math.floor(Math.random() * 151) + 1;
     const poke = await getPokemon(id);
@@ -721,7 +721,9 @@ commands.spawn = async (message) => {
     if (!poke) return message.reply("⚠️ Failed to spawn Pokémon.");
 
     const instance = createPokemonInstance(poke);
-    pokemonPlayers[message.author.id].spawn = instance;
+    player.spawn = instance;
+
+    await db.set(`player_${message.author.id}`, player);
 
     if (instance.image) {
         await message.reply({
@@ -733,7 +735,6 @@ commands.spawn = async (message) => {
     }
 };
 
-// auto-spawn helper (Pokétwo-style)
 async function spawnRandomPokemonChannel(channel) {
     const id = Math.floor(Math.random() * 151) + 1;
     const poke = await getPokemon(id);
@@ -753,8 +754,7 @@ async function spawnRandomPokemonChannel(channel) {
 }
 
 commands.catch = async (message) => {
-    ensurePlayer(message.author.id);
-    const player = pokemonPlayers[message.author.id];
+    const player = await ensurePlayer(message.author.id);
 
     if (!player.spawn) return message.reply("🎯 No Pokémon to catch. Use >spawn first.");
 
@@ -782,6 +782,7 @@ commands.catch = async (message) => {
 
     if (Math.random() > chance) {
         player.spawn = null;
+        await db.set(`player_${message.author.id}`, player);
         return message.reply(`💨 The Pokémon escaped! Your ${ball} was used.`);
     }
 
@@ -791,13 +792,13 @@ commands.catch = async (message) => {
 
     gainXp(player, 10);
 
+    await db.set(`player_${message.author.id}`, player);
+
     await message.reply(`🎉 You caught ${caught.name.toUpperCase()}! (+10 XP)\nUse >team to view your Pokémon.`);
 };
 
-// catch from channel auto-spawn / owner spawn
 commands.catchwild = async (message) => {
-    ensurePlayer(message.author.id);
-    const player = pokemonPlayers[message.author.id];
+    const player = await ensurePlayer(message.author.id);
 
     const wild = channelSpawns[message.channel.id];
     if (!wild) return message.reply("🎯 No wild Pokémon in this channel.");
@@ -826,6 +827,7 @@ commands.catchwild = async (message) => {
 
     if (Math.random() > chance) {
         channelSpawns[message.channel.id] = null;
+        await db.set(`player_${message.author.id}`, player);
         return message.reply(`💨 The wild Pokémon escaped! Your ${ball} was used.`);
     }
 
@@ -834,12 +836,13 @@ commands.catchwild = async (message) => {
 
     gainXp(player, 15);
 
+    await db.set(`player_${message.author.id}`, player);
+
     await message.reply(`🎉 You caught ${wild.name.toUpperCase()} from the channel! (+15 XP)\nUse >team to view your Pokémon.`);
 };
 
 commands.team = async (message) => {
-    ensurePlayer(message.author.id);
-    const player = pokemonPlayers[message.author.id];
+    const player = await ensurePlayer(message.author.id);
 
     if (!player.team.length) return message.reply("👥 Your team is empty. Use >spawn and >catch.");
 
@@ -854,24 +857,24 @@ commands.team = async (message) => {
 };
 
 commands.release = async (message, args) => {
-    ensurePlayer(message.author.id);
-    const player = pokemonPlayers[message.author.id];
+    const player = await ensurePlayer(message.author.id);
 
     const index = parseInt(args[0]);
     if (!index || index < 1 || index > player.team.length)
         return message.reply("🗑️ Provide a valid team slot number. Example: >release 1");
 
     const removed = player.team.splice(index - 1, 1)[0];
+
+    await db.set(`player_${message.author.id}`, player);
+
     await message.reply(`🗑️ You released ${removed.name.toUpperCase()} from your team.`);
 };
 
 commands.trade = async (message, args) => {
     const sub = args[0];
-    ensurePlayer(message.author.id);
+    const player = await ensurePlayer(message.author.id);
 
     if (!sub) return message.reply("🔁 Trade Commands: >trade request @user slot, >trade accept, >trade cancel");
-
-    const player = pokemonPlayers[message.author.id];
 
     if (sub === "request") {
         const target = message.mentions.users.first();
@@ -881,12 +884,14 @@ commands.trade = async (message, args) => {
         if (!slot || slot < 1 || slot > player.team.length)
             return message.reply("🔁 Provide a valid team slot to offer.");
 
-        ensurePlayer(target.id);
+        const targetPlayer = await ensurePlayer(target.id);
 
         player.trade = {
             targetId: target.id,
             offerIndex: slot - 1
         };
+
+        await db.set(`player_${message.author.id}`, player);
 
         return message.reply(`🔁 Trade request sent to ${target.username}. They can use >trade accept.`);
     }
@@ -896,8 +901,7 @@ commands.trade = async (message, args) => {
         if (!trade) return message.reply("🔁 You have no incoming trade to accept.");
 
         const fromId = trade.targetId;
-        ensurePlayer(fromId);
-        const fromPlayer = pokemonPlayers[fromId];
+        const fromPlayer = await ensurePlayer(fromId);
 
         const offered = fromPlayer.team[trade.offerIndex];
         if (!offered) return message.reply("🔁 The offered Pokémon no longer exists.");
@@ -907,11 +911,15 @@ commands.trade = async (message, args) => {
 
         player.trade = null;
 
+        await db.set(`player_${message.author.id}`, player);
+        await db.set(`player_${fromId}`, fromPlayer);
+
         return message.reply(`🔁 You accepted the trade and received ${offered.name.toUpperCase()}!`);
     }
 
     if (sub === "cancel") {
         player.trade = null;
+        await db.set(`player_${message.author.id}`, player);
         return message.reply("🔁 Your trade request was cancelled.");
     }
 
@@ -919,8 +927,7 @@ commands.trade = async (message, args) => {
 };
 
 commands.fight = async (message, args) => {
-    ensurePlayer(message.author.id);
-    const player = pokemonPlayers[message.author.id];
+    const player = await ensurePlayer(message.author.id);
 
     if (!player.team.length) return message.reply("⚔️ You have no Pokémon to fight with. Use >catch first.");
 
@@ -948,6 +955,9 @@ commands.fight = async (message, args) => {
         gainXp(player, 20);
         ally.level += 1;
         ally = await tryEvolve(ally);
+
+        await db.set(`player_${message.author.id}`, player);
+
         battleText += `💥 Wild ${wild.name.toUpperCase()} fainted!\n⭐ ${ally.name.toUpperCase()} gained a level! (+20 XP)\n`;
         return message.reply(battleText);
     }
@@ -961,6 +971,8 @@ commands.fight = async (message, args) => {
     } else {
         battleText += `❤️ ${ally.name.toUpperCase()} HP: ${ally.hp}/${ally.maxHp}\n`;
     }
+
+    await db.set(`player_${message.author.id}`, player);
 
     await message.reply(battleText);
 };
@@ -996,8 +1008,7 @@ commands.fightboss = async (message, args) => {
     const boss = bossSpawns[guildId];
     if (!boss) return message.reply("👑 No boss present. Use >boss to spawn one.");
 
-    ensurePlayer(message.author.id);
-    const player = pokemonPlayers[message.author.id];
+    const player = await ensurePlayer(message.author.id);
 
     if (!player.team.length) return message.reply("⚔️ You have no Pokémon to fight with.");
 
@@ -1018,6 +1029,9 @@ commands.fightboss = async (message, args) => {
         gainXp(player, 100);
         ally.level += 3;
         bossSpawns[guildId] = null;
+
+        await db.set(`player_${message.author.id}`, player);
+
         text += `💥 Boss ${boss.name.toUpperCase()} was defeated!\n⭐ ${ally.name.toUpperCase()} gained 3 levels! (+100 XP)\n💰 You earned 500 coins!`;
         addCoins(message.author.id, 500);
         return message.reply(text);
@@ -1035,11 +1049,11 @@ commands.fightboss = async (message, args) => {
 
     text += `👑 Boss HP: ${boss.hp}/${boss.maxHp * 5}`;
 
-        await message.reply(text);
-}; // <-- closes commands.fightboss properly
+    await db.set(`player_${message.author.id}`, player);
 
-
-// OWNER-ONLY SPAWN COMMAND
+    await message.reply(text);
+};
+// OWNER-ONLY SPAWN COMMAND (QuickDB v9)
 commands.ownerspawn = async (message, args) => {
 
     if (message.author.id !== OWNER_ID) {
@@ -1051,12 +1065,10 @@ commands.ownerspawn = async (message, args) => {
 
     let data = null;
 
-    // If user typed a number (ID)
     if (!isNaN(name)) {
         data = await getPokemon(parseInt(name));
     }
 
-    // If user typed a name
     if (!data) {
         const entry = Object.values(pokedex).find(
             p => p.name.toLowerCase() === name
@@ -1178,13 +1190,8 @@ commands.shop = async (message, args) => {
     await message.reply({ embeds: [embed] });
 };
 
-// ===============================
-// BUY COMMAND
-// ===============================
-
 commands.buy = async (message, args) => {
-    ensurePlayer(message.author.id);
-    const player = pokemonPlayers[message.author.id];
+    const player = await ensurePlayer(message.author.id);
 
     const item = args[0]?.toLowerCase();
     const amount = parseInt(args[1]) || 1;
@@ -1192,54 +1199,54 @@ commands.buy = async (message, args) => {
     if (!item) return message.reply("🛒 Specify an item to buy. Example: >buy pokeball 3");
 
     const prices = {
-    pokeball: 50,
-    greatball: 150,
-    ultraball: 300,
-    masterball: 1000,
+        pokeball: 50,
+        greatball: 150,
+        ultraball: 300,
+        masterball: 1000,
 
-    potion: 100,
-    superpotion: 200,
-    hyperpotion: 400,
-    revive: 500,
-    maxrevive: 800,
+        potion: 100,
+        superpotion: 200,
+        hyperpotion: 400,
+        revive: 500,
+        maxrevive: 800,
 
-    // Mega Stones
-    charizarditex: 1000,
-    charizarditey: 1000,
-    mewtwonitex: 1200,
-    mewtwonitey: 1200,
-    gengarite: 900,
-    lucarionite: 900,
-    blastoisinite: 1000,
-    venusaurite: 1000,
-    blazikenite: 1200,
-    sceptilite: 1000,
-    swampertite: 1000,
-    gardevoirite: 900,
-    tyranitarite: 1200,
-    salamencite: 1200,
+        charizarditex: 1000,
+        charizarditey: 1000,
+        mewtwonitex: 1200,
+        mewtwonitey: 1200,
+        gengarite: 900,
+        lucarionite: 900,
+        blastoisinite: 1000,
+        venusaurite: 1000,
+        blazikenite: 1200,
+        sceptilite: 1000,
+        swampertite: 1000,
+        gardevoirite: 900,
+        tyranitarite: 1200,
+        salamencite: 1200,
 
-    // Gigantamax / Dynamax
-    dynamaxband: 1500,
-    gmaxcandy: 700,
-    maxsoup: 900,
+        dynamaxband: 1500,
+        gmaxcandy: 700,
+        maxsoup: 900,
 
-    // TMs
-    tm01: 300,
-    tm02: 300,
-    tm03: 300,
-    tmrandom: 500
-};
+        tm01: 300,
+        tm02: 300,
+        tm03: 300,
+        tmrandom: 500
+    };
 
     if (!prices[item]) return message.reply("🛒 That item does not exist. Use >shop.");
 
     const cost = prices[item] * amount;
-    const coins = getUserBalance(message.author.id);
+    const coins = await getCoins(message.author.id);
 
     if (coins < cost) return message.reply("💸 You don't have enough coins.");
 
-    removeCoins(message.author.id, cost);
+    await removeCoins(message.author.id, cost);
+
     player.items[item] = (player.items[item] || 0) + amount;
+
+    await db.set(`player_${message.author.id}`, player);
 
     await message.reply(`🛒 You bought ${amount} ${item}(s) for ${cost} coins.`);
 };
