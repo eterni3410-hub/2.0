@@ -11,7 +11,7 @@ const ms = require("ms");
 // KEYS (USE ENV VARIABLES)
 // ===============================
 
-const TOKEN = "YOUR_BOT_TOKEN_HERE";
+const TOKEN = process.env.TOKEN;
 
 // ===============================
 // DISCORD CLIENT
