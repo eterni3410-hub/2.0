@@ -3,8 +3,7 @@
    CLEANED + FIXED + IMPROVED
    =============================== */
 
-const { Client, GatewayIntentBits, Partials, PermissionsBitField } = require("discord.js");
-const OpenAI = require("openai");
+const { Client, GatewayIntentBits, Partials, PermissionsBitField, EmbedBuilder } = require("discord.js");
 const fetch = require("node-fetch");
 const ms = require("ms");
 
@@ -12,17 +11,7 @@ const ms = require("ms");
 // KEYS (USE ENV VARIABLES)
 // ===============================
 
-const TOKEN = process.env.TOKEN;
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-
-
-// ===============================
-// OPENAI CLIENT (CORRECT SETUP)
-// ===============================
-
-const openai = new OpenAI({
-    apiKey: OPENAI_API_KEY
-});
+const TOKEN = "YOUR_BOT_TOKEN_HERE";
 
 // ===============================
 // DISCORD CLIENT
@@ -59,6 +48,14 @@ const hangmanGames = {};
 const hangmanWords = ["apple", "banana", "dragon", "pokemon", "discord", "chaos"];
 
 const blackjackGames = {};
+
+// auto-spawn (Pokétwo-style)
+let messageCount = 0;
+const spawnThreshold = 15;
+const channelSpawns = {};
+
+// OWNER ID (for owner-only spawn)
+const OWNER_ID = "YOUR_USER_ID_HERE";
 
 // HELPER FUNCTIONS
 // ===============================
@@ -121,87 +118,6 @@ function calculateHand(hand) {
     return total;
 }
 
-function ensurePlayer(id) {
-    if (!pokemonPlayers[id]) {
-        pokemonPlayers[id] = {
-            team: [],
-            spawn: null,
-            xp: 0,
-            items: {
-                pokeball: 5,
-                greatball: 0,
-                ultraball: 0,
-                potion: 0,
-                rarecandy: 0
-            }
-        };
-    }
-}
-
-async function getPokemon(identifier) {
-    try {
-        const url = `https://pokeapi.co/api/v2/pokemon/${identifier}`;
-        const res = await fetch(url);
-        if (!res.ok) return null;
-
-        const data = await res.json();
-
-        return {
-            name: data.name,
-            id: data.id,
-            types: data.types.map(t => t.type.name),
-            image: data.sprites.other["official-artwork"].front_default || null,
-            baseStats: {
-                hp: data.stats[0].base_stat,
-                attack: data.stats[1].base_stat,
-                defense: data.stats[2].base_stat
-            }
-        };
-    } catch {
-        return null;
-    }
-}
-
-function createPokemonInstance(poke) {
-    return {
-        name: poke.name,
-        id: poke.id,
-        types: poke.types,
-        image: poke.image,
-        level: 5,
-        xp: 0,
-        hp: poke.baseStats.hp,
-        maxHp: poke.baseStats.hp,
-        attack: poke.baseStats.attack,
-        defense: poke.baseStats.defense
-    };
-}
-
-function gainXp(player, amount) {
-    player.xp += amount;
-}
-
-const evolutionTable = {
-    1: { evolveTo: 2, level: 16 },
-    4: { evolveTo: 5, level: 16 },
-    7: { evolveTo: 8, level: 16 }
-};
-
-async function tryEvolve(pokemon) {
-    const evo = evolutionTable[pokemon.id];
-    if (!evo) return pokemon;
-    if (pokemon.level < evo.level) return pokemon;
-
-    const newData = await getPokemon(evo.evolveTo);
-    if (!newData) return pokemon;
-
-    const evolved = createPokemonInstance(newData);
-    evolved.level = pokemon.level;
-    evolved.xp = pokemon.xp;
-
-    return evolved;
-}
-
 // ===============================
 // COMMAND SYSTEM
 // ===============================
@@ -221,27 +137,22 @@ async function handleCommand(message, commandName, args) {
 client.on("messageCreate", async (message) => {
     if (message.author.bot) return;
 
-    // AI AUTO-CHAT (correct OpenAI call)
+    // AI AUTO-CHAT DISABLED SAFELY
     if (aiChatEnabled[message.channel.id] && !message.content.startsWith(PREFIX)) {
-        try {
-            const response = await openai.chat.completions.create({
-                model: "gpt-4o-mini",
-                messages: [
-                    { role: "system", content: "You are a friendly Discord bot." },
-                    { role: "user", content: message.content }
-                ]
-            });
-
-            await message.reply(response.choices[0].message.content);
-        } catch (err) {
-            console.error("AI Chat Error:", err);
-            await message.reply("AI request failed.");
-        }
-        return; // prevents double replies
+        return; // do nothing, prevents crashes
     }
 
-    // Commands
-    if (!message.content.startsWith(PREFIX)) return;
+    // auto-spawn based on chat activity (Pokétwo-style)
+    if (!message.content.startsWith(PREFIX)) {
+        messageCount++;
+        if (messageCount >= spawnThreshold) {
+            messageCount = 0;
+            if (Math.random() < 0.4) {
+                await spawnRandomPokemonChannel(message.channel);
+            }
+        }
+        return;
+    }
 
     const args = message.content.slice(PREFIX.length).trim().split(/\s+/);
     const commandName = args.shift()?.toLowerCase();
@@ -254,7 +165,6 @@ client.on("messageCreate", async (message) => {
         message.reply("⚠️ **Error running command.**");
     }
 });
-
 // ===============================
 // BASIC COMMANDS
 // ===============================
@@ -270,8 +180,8 @@ commands.help = async (message) => {
         "💰 Economy: `>balance`, `>daily`, `>give`, `>leaderboard`\n" +
         "🎰 Gambling: `>coinflip`, `>slots`, `>blackjack`, `>hit`, `>stand`\n" +
         "🎮 Games: `>uno`, `>hangman`, `>guess`, `>hangmanend`\n" +
-        "⚔️ Pokémon: `>pokemon`, `>pokedex`, `>spawn`, `>catch`, `>team`, `>release`, `>trade`, `>fight`, `>boss`, `>fightboss`, `>shop`, `>buy`, `>use`\n" +
-        "🤖 AI: `>ask`, `>rewrite`, `>summarize`, `>imagine`, `>chat on/off`\n" +
+        "⚔️ Pokémon: `>pokemon`, `>pokedex`, `>spawn`, `>ownerspawn`, `>catch`, `>catchwild`, `>team`, `>release`, `>trade`, `>fight`, `>boss`, `>fightboss`, `>gigantamax`, `>mega`, `>shop`, `>buy`, `>use`\n" +
+        "🤖 AI: `>chat on/off` (disabled)\n" +
         "🧭 Utility: `>ping`, `>uptime`"
     );
 };
@@ -526,7 +436,7 @@ commands.guess = async (message, args) => {
 
     game.guessed.push(letter);
 
-        if (!game.word.includes(letter)) {
+    if (!game.word.includes(letter)) {
         game.wrong++;
         if (game.wrong >= 6) {
             delete hangmanGames[guildId];
@@ -747,104 +657,6 @@ commands.stand = async (message) => {
         result
     );
 };
-
-/* ===============================
-   AI / OPENAI MODULE (FULLY FIXED)
-   =============================== */
-
-commands.ask = async (message, args) => {
-    const prompt = args.join(" ");
-    if (!prompt) return message.reply("Ask me something. Example: >ask What is Pikachu?");
-
-    try {
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-                { role: "user", content: prompt }
-            ]
-        });
-
-        await message.reply(response.choices[0].message.content);
-    } catch (err) {
-        console.error(err);
-        await message.reply("AI request failed.");
-    }
-};
-
-commands.rewrite = async (message, args) => {
-    const text = args.join(" ");
-    if (!text) return message.reply("Provide text to rewrite.");
-
-    try {
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-                { role: "user", content: `Rewrite this clearly:\n${text}` }
-            ]
-        });
-
-        await message.reply(response.choices[0].message.content);
-    } catch (err) {
-        console.error(err);
-        await message.reply("Rewrite failed.");
-    }
-};
-
-commands.summarize = async (message, args) => {
-    const text = args.join(" ");
-    if (!text) return message.reply("Provide text to summarize.");
-
-    try {
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-                { role: "user", content: `Summarize this:\n${text}` }
-            ]
-        });
-
-        await message.reply(response.choices[0].message.content);
-    } catch (err) {
-        console.error(err);
-        await message.reply("Summarization failed.");
-    }
-};
-
-commands.imagine = async (message, args) => {
-    const prompt = args.join(" ");
-    if (!prompt) return message.reply("Provide a prompt to imagine.");
-
-    try {
-        const response = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-                { role: "user", content: `Generate a creative idea:\n${prompt}` }
-            ]
-        });
-
-        await message.reply(response.choices[0].message.content);
-    } catch (err) {
-        console.error(err);
-        await message.reply("Imagine failed.");
-    }
-};
-
-commands.chat = async (message, args) => {
-    const sub = args[0];
-    if (!sub) return message.reply("Use: >chat on or >chat off");
-
-    if (sub === "on") {
-        aiChatEnabled[message.channel.id] = true;
-        return message.reply("AI chat enabled in this channel.");
-    }
-
-    if (sub === "off") {
-        aiChatEnabled[message.channel.id] = false;
-        return message.reply("AI chat disabled in this channel.");
-    }
-
-    return message.reply("Use: >chat on or >chat off");
-};
-
 // ===============================
 // POKEMON SYSTEM
 // ===============================
@@ -857,11 +669,11 @@ commands.pokemon = async (message) => {
 
     if (poke.image) {
         await message.reply({
-            content: `👹 Random Pokémon: ${poke.name.toUpperCase()}\nType: ${poke.types.join(", ")}`,
+            content: `🐾 Random Pokémon: ${poke.name.toUpperCase()}\nType: ${poke.types.join(", ")}`,
             files: [poke.image]
         });
     } else {
-        await message.reply(`👹 Random Pokémon: ${poke.name.toUpperCase()}\nType: ${poke.types.join(", ")}\n(No image available)`);
+        await message.reply(`🐾 Random Pokémon: ${poke.name.toUpperCase()}\nType: ${poke.types.join(", ")}\n(No image available)`);
     }
 };
 
@@ -882,6 +694,7 @@ commands.pokedex = async (message, args) => {
     }
 };
 
+// legacy player spawn (kept)
 commands.spawn = async (message) => {
     ensurePlayer(message.author.id);
 
@@ -903,19 +716,66 @@ commands.spawn = async (message) => {
     }
 };
 
+// OWNER-ONLY SPAWN (any Pokémon by name or ID)
+commands.ownerspawn = async (message, args) => {
+    if (message.author.id !== OWNER_ID) {
+        return message.reply("Only the owner can use this command.");
+    }
+
+    const query = args.join(" ").toLowerCase();
+    if (!query) return message.reply("Specify a Pokémon name or ID.");
+
+    const poke = await getPokemon(query);
+    if (!poke) return message.reply("⚠️ Failed to fetch Pokémon.");
+
+    const instance = createPokemonInstance(poke);
+    channelSpawns[message.channel.id] = instance;
+
+    if (instance.image) {
+        await message.channel.send({
+            content: `🌿 A wild ${instance.name.toUpperCase()} appeared! (Owner Spawn)\nUse >catchwild to try catching it.`,
+            files: [instance.image]
+        });
+    } else {
+        await message.channel.send(`🌿 A wild ${instance.name.toUpperCase()} appeared! (Owner Spawn)\nUse >catchwild to try catching it.\n(No image available)`);
+    }
+};
+
+// auto-spawn helper (Pokétwo-style)
+async function spawnRandomPokemonChannel(channel) {
+    const id = Math.floor(Math.random() * 151) + 1;
+    const poke = await getPokemon(id);
+    if (!poke) return;
+
+    const instance = createPokemonInstance(poke);
+    channelSpawns[channel.id] = instance;
+
+    if (instance.image) {
+        await channel.send({
+            content: `🌿 A wild ${instance.name.toUpperCase()} appeared!\nUse >catchwild to try catching it.`,
+            files: [instance.image]
+        });
+    } else {
+        await channel.send(`🌿 A wild ${instance.name.toUpperCase()} appeared!\nUse >catchwild to try catching it.\n(No image available)`);
+    }
+}
+
 commands.catch = async (message) => {
     ensurePlayer(message.author.id);
     const player = pokemonPlayers[message.author.id];
 
     if (!player.spawn) return message.reply("🎯 No Pokémon to catch. Use >spawn first.");
 
-    if (player.items.pokeball <= 0 && player.items.greatball <= 0 && player.items.ultraball <= 0)
+    if (player.items.pokeball <= 0 && player.items.greatball <= 0 && player.items.ultraball <= 0 && player.items.masterball <= 0)
         return message.reply("🎯 You have no Pokéballs! Buy some with >shop.");
 
     let ball = "pokeball";
     let catchBonus = 0;
 
-    if (player.items.ultraball > 0) {
+    if (player.items.masterball > 0) {
+        ball = "masterball";
+        catchBonus = 1.0;
+    } else if (player.items.ultraball > 0) {
         ball = "ultraball";
         catchBonus = 0.3;
     } else if (player.items.greatball > 0) {
@@ -940,6 +800,49 @@ commands.catch = async (message) => {
     gainXp(player, 10);
 
     await message.reply(`🎉 You caught ${caught.name.toUpperCase()}! (+10 XP)\nUse >team to view your Pokémon.`);
+};
+
+// catch from channel auto-spawn / owner spawn
+commands.catchwild = async (message) => {
+    ensurePlayer(message.author.id);
+    const player = pokemonPlayers[message.author.id];
+
+    const wild = channelSpawns[message.channel.id];
+    if (!wild) return message.reply("🎯 No wild Pokémon in this channel.");
+
+    if (player.items.pokeball <= 0 && player.items.greatball <= 0 && player.items.ultraball <= 0 && player.items.masterball <= 0)
+        return message.reply("🎯 You have no Pokéballs! Buy some with >shop.");
+
+    let ball = "pokeball";
+    let catchBonus = 0;
+
+    if (player.items.masterball > 0) {
+        ball = "masterball";
+        catchBonus = 1.0;
+    } else if (player.items.ultraball > 0) {
+        ball = "ultraball";
+        catchBonus = 0.3;
+    } else if (player.items.greatball > 0) {
+        ball = "greatball";
+        catchBonus = 0.15;
+    }
+
+    player.items[ball]--;
+
+    const baseChance = 0.4;
+    const chance = baseChance + catchBonus;
+
+    if (Math.random() > chance) {
+        channelSpawns[message.channel.id] = null;
+        return message.reply(`💨 The wild Pokémon escaped! Your ${ball} was used.`);
+    }
+
+    player.team.push(wild);
+    channelSpawns[message.channel.id] = null;
+
+    gainXp(player, 15);
+
+    await message.reply(`🎉 You caught ${wild.name.toUpperCase()} from the channel! (+15 XP)\nUse >team to view your Pokémon.`);
 };
 
 commands.team = async (message) => {
@@ -1020,8 +923,9 @@ commands.trade = async (message, args) => {
         return message.reply("🔁 Your trade request was cancelled.");
     }
 
-  return message.reply("🔁 Trade Commands: >trade request @user slot, >trade accept, >trade cancel");
+    return message.reply("🔁 Trade Commands: >trade request @user slot, >trade accept, >trade cancel");
 };
+
 commands.fight = async (message, args) => {
     ensurePlayer(message.author.id);
     const player = pokemonPlayers[message.author.id];
@@ -1141,17 +1045,71 @@ commands.fightboss = async (message, args) => {
 
     await message.reply(text);
 };
+// ===============================
+// SHOP (5-page embed layout)
+// ===============================
 
-commands.shop = async (message) => {
-    await message.reply(
-        "🛒 PokéShop:\n" +
-        "• pokeball — 50 coins\n" +
-        "• greatball — 150 coins\n" +
-        "• ultraball — 300 coins\n" +
-        "• potion — 100 coins (heal 30 HP)\n" +
-        "• rarecandy — 500 coins (level up a Pokémon)\n\n" +
-        "Use >buy item amount to purchase."
-    );
+const shopPages = [
+    {
+        title: "Pokéballs",
+        description:
+            "🔸 **Pokéball** — 50 coins\n" +
+            "🔹 **Great Ball** — 150 coins\n" +
+            "🔶 **Ultra Ball** — 300 coins\n" +
+            "💎 **Master Ball** — 1000 coins"
+    },
+    {
+        title: "Battle Items",
+        description:
+            "🛡️ **Potion** — 100 coins (heal 30 HP)\n" +
+            "💊 **Super Potion** — 200 coins (heal 60 HP)\n" +
+            "💉 **Hyper Potion** — 400 coins (heal 120 HP)\n" +
+            "☀️ **Revive** — 500 coins (revive fainted Pokémon)\n" +
+            "✨ **Max Revive** — 800 coins (full revive)"
+    },
+    {
+        title: "Mega Stones",
+        description:
+            "⚜️ **Charizardite X** — 1000 coins\n" +
+            "⚜️ **Charizardite Y** — 1000 coins\n" +
+            "⚜️ **Mewtwonite X** — 1200 coins\n" +
+            "⚜️ **Mewtwonite Y** — 1200 coins\n" +
+            "⚜️ **Gengarite** — 900 coins\n" +
+            "⚜️ **Lucarionite** — 900 coins"
+    },
+    {
+        title: "Gigantamax Items",
+        description:
+            "✨ **Dynamax Band** — 1500 coins\n" +
+            "✨ **G-Max Candy** — 700 coins\n" +
+            "🍲 **Max Soup** — 900 coins"
+    },
+    {
+        title: "TMs",
+        description:
+            "📀 **TM01** — 300 coins\n" +
+            "📀 **TM02** — 300 coins\n" +
+            "📀 **TM03** — 300 coins\n" +
+            "📀 **TM Random** — 500 coins"
+    }
+];
+
+commands.shop = async (message, args) => {
+    const page = parseInt(args[0]) || 1;
+    const index = page - 1;
+
+    if (index < 0 || index >= shopPages.length) {
+        return message.reply(`🛒 Invalid page. Choose 1–${shopPages.length}.`);
+    }
+
+    const data = shopPages[index];
+
+    const embed = new EmbedBuilder()
+        .setTitle(`🛒 PokéShop — Page ${page}/${shopPages.length} (${data.title})`)
+        .setDescription(data.description)
+        .setColor(0xff99cc);
+
+    await message.reply({ embeds: [embed] });
 };
 
 commands.buy = async (message, args) => {
@@ -1167,8 +1125,25 @@ commands.buy = async (message, args) => {
         pokeball: 50,
         greatball: 150,
         ultraball: 300,
+        masterball: 1000,
         potion: 100,
-        rarecandy: 500
+        superpotion: 200,
+        hyperpotion: 400,
+        revive: 500,
+        maxrevive: 800,
+        charizarditex: 1000,
+        charizarditey: 1000,
+        mewtwonitex: 1200,
+        mewtwonitey: 1200,
+        gengarite: 900,
+        lucarionite: 900,
+        dynamaxband: 1500,
+        gmaxcandy: 700,
+        maxsoup: 900,
+        tm01: 300,
+        tm02: 300,
+        tm03: 300,
+        tmrandom: 500
     };
 
     if (!prices[item]) return message.reply("🛒 That item does not exist. Use >shop.");
@@ -1203,12 +1178,40 @@ commands.use = async (message, args) => {
 
     let p = player.team[slot - 1];
 
+    // healing items
     if (item === "potion") {
         p.hp = Math.min(p.maxHp, p.hp + 30);
         player.items[item]--;
         return message.reply(`🧪 Potion used on ${p.name.toUpperCase()}! HP is now ${p.hp}/${p.maxHp}.`);
     }
 
+    if (item === "superpotion") {
+        p.hp = Math.min(p.maxHp, p.hp + 60);
+        player.items[item]--;
+        return message.reply(`🧪 Super Potion used on ${p.name.toUpperCase()}! HP is now ${p.hp}/${p.maxHp}.`);
+    }
+
+    if (item === "hyperpotion") {
+        p.hp = Math.min(p.maxHp, p.hp + 120);
+        player.items[item]--;
+        return message.reply(`🧪 Hyper Potion used on ${p.name.toUpperCase()}! HP is now ${p.hp}/${p.maxHp}.`);
+    }
+
+    if (item === "revive") {
+        if (p.hp > 0) return message.reply("🧪 That Pokémon is not fainted.");
+        p.hp = Math.floor(p.maxHp * 0.5);
+        player.items[item]--;
+        return message.reply(`☀️ Revive used! ${p.name.toUpperCase()} is back with ${p.hp}/${p.maxHp} HP.`);
+    }
+
+    if (item === "maxrevive") {
+        if (p.hp > 0) return message.reply("🧪 That Pokémon is not fainted.");
+        p.hp = p.maxHp;
+        player.items[item]--;
+        return message.reply(`✨ Max Revive used! ${p.name.toUpperCase()} is fully restored.`);
+    }
+
+    // rare candy (legacy)
     if (item === "rarecandy") {
         p.level += 1;
         player.items[item]--;
@@ -1217,8 +1220,54 @@ commands.use = async (message, args) => {
         return message.reply(`🍬 Rare Candy used! ${p.name.toUpperCase()} is now Lv.${p.level}.`);
     }
 
+    // mega stones (simple mega buff)
+    if (["charizarditex", "charizarditey", "mewtwonitex", "mewtwonitey", "gengarite", "lucarionite"].includes(item)) {
+        player.items[item]--;
+        p.attack = Math.floor(p.attack * 1.5);
+        p.defense = Math.floor(p.defense * 1.5);
+        p.name = `Mega ${p.name}`;
+        return message.reply(`⚜️ ${item} used! ${p.name.toUpperCase()} has mega evolved and gained boosted stats.`);
+    }
+
+    // gigantamax items
+    if (item === "gmaxcandy") {
+        player.items[item]--;
+        p.maxHp = Math.floor(p.maxHp * 1.3);
+        p.hp = p.maxHp;
+        return message.reply(`✨ G-Max Candy used! ${p.name.toUpperCase()} has increased HP and is ready to Gigantamax.`);
+    }
+
+    if (item === "dynamaxband") {
+        player.items[item]--;
+        p.attack = Math.floor(p.attack * 1.2);
+        return message.reply(`✨ Dynamax Band used! ${p.name.toUpperCase()}'s attack has increased.`);
+    }
+
+    if (item === "maxsoup") {
+        player.items[item]--;
+        p.maxHp = Math.floor(p.maxHp * 1.2);
+        p.attack = Math.floor(p.attack * 1.2);
+        return message.reply(`🍲 Max Soup used! ${p.name.toUpperCase()} feels stronger and bulkier.`);
+    }
+
+    // TMs (simple flavor)
+    if (["tm01", "tm02", "tm03", "tmrandom"].includes(item)) {
+        player.items[item]--;
+        return message.reply(`📀 TM used on ${p.name.toUpperCase()}! It learned a powerful move (flavor).`);
+    }
+
     return message.reply("🧪 That item cannot be used this way.");
 };
+
+// quick commands for mega/gmax flavor
+commands.mega = async (message, args) => {
+    return message.reply("⚜️ Use your specific mega stone with `>use <stone> <slot>` to mega evolve.");
+};
+
+commands.gigantamax = async (message, args) => {
+    return message.reply("✨ Use `>use gmaxcandy <slot>` or `>use dynamaxband <slot>` to power up for Gigantamax.");
+};
+
 /* ===============================
    POKEMON ENGINE (REQUIRED)
    =============================== */
@@ -1234,8 +1283,26 @@ function ensurePlayer(id) {
                 pokeball: 5,
                 greatball: 0,
                 ultraball: 0,
+                masterball: 0,
                 potion: 0,
-                rarecandy: 0
+                superpotion: 0,
+                hyperpotion: 0,
+                revive: 0,
+                maxrevive: 0,
+                rarecandy: 0,
+                charizarditex: 0,
+                charizarditey: 0,
+                mewtwonitex: 0,
+                mewtwonitey: 0,
+                gengarite: 0,
+                lucarionite: 0,
+                dynamaxband: 0,
+                gmaxcandy: 0,
+                maxsoup: 0,
+                tm01: 0,
+                tm02: 0,
+                tm03: 0,
+                tmrandom: 0
             },
             team: [],
             spawn: null,
@@ -1320,6 +1387,7 @@ async function tryEvolve(p) {
         return p;
     }
 }
+
 // ===============================
 // GIVEAWAY SYSTEM (FIXED + GIF)
 // ===============================
@@ -1351,11 +1419,9 @@ commands.giveaway = async (message, args) => {
             return message.reply("🎉 A giveaway is already running in this channel.");
         }
 
-        const ms = require("ms");
         const duration = ms(time);
         if (!duration) return message.reply("⏳ Invalid time format.");
 
-        // SEND GIVEAWAY MESSAGE WITH YOUR GIF
         const embedMsg = await message.channel.send({
             content:
                 `🎉 **GIVEAWAY STARTED!** 🎉\n` +
@@ -1363,7 +1429,6 @@ commands.giveaway = async (message, args) => {
                 `React with 🎉 to enter!\n` +
                 `Ends in **${time}**`,
             files: [
-                // YOUR GIF HERE
                 "https://cdn.discordapp.com/attachments/1512149506076967035/1512233267233951896/lv_0_20260604191428.jpg?ex=6a23587a&is=6a2206fa&hm=606f56dc85540d539e280eed5b22765cc29ad5c40ba998974e2fbfd3af1dce0f"
             ]
         });
@@ -1376,7 +1441,6 @@ commands.giveaway = async (message, args) => {
             endTime: Date.now() + duration
         };
 
-        // AUTO END
         setTimeout(async () => {
             const data = giveaways[message.channel.id];
             if (!data) return;
@@ -1410,7 +1474,6 @@ commands.giveaway = async (message, args) => {
         return;
     }
 
-    // END GIVEAWAY
     if (sub === "end") {
         const data = giveaways[message.channel.id];
         if (!data) return message.reply("❌ No giveaway running.");
@@ -1419,7 +1482,6 @@ commands.giveaway = async (message, args) => {
         return message.reply("🛑 **Giveaway will end momentarily.**");
     }
 
-    // REROLL
     if (sub === "reroll") {
         const data = giveaways[message.channel.id];
         if (!data) return message.reply("❌ No giveaway to reroll.");
