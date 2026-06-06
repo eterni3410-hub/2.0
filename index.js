@@ -1044,7 +1044,6 @@ commands.fightboss = async (message, args) => {
     text += `👑 Boss HP: ${boss.hp}/${boss.maxHp * 5}`;
 
     await message.reply(text);
-};
 // OWNER-ONLY SPAWN COMMAND
 commands.ownerspawn = async (message, args) => {
     const OWNER_ID = "1223290780852944957"; // Eterni
@@ -1053,10 +1052,24 @@ commands.ownerspawn = async (message, args) => {
         return message.reply("Only the owner can use this command.");
     }
 
-    const name = args.join(" ");
+    const name = args.join(" ").toLowerCase();
     if (!name) return message.reply("Specify a Pokémon name or ID.");
 
-    const data = await getPokemonByNameOrId(name);
+    let data = null;
+
+    // If user typed a number (ID)
+    if (!isNaN(name)) {
+        data = await getPokemon(parseInt(name));
+    }
+
+    // If user typed a name
+    if (!data) {
+        const entry = Object.values(pokedex).find(
+            p => p.name.toLowerCase() === name
+        );
+        if (entry) data = await getPokemon(entry.id);
+    }
+
     if (!data) return message.reply("Invalid Pokémon name or ID.");
 
     const pokemon = createPokemonInstance(data);
@@ -1122,23 +1135,48 @@ const shopPages = [
     }
 ];
 
-commands.shop = async (message, args) => {
-    const page = parseInt(args[0]) || 1;
-    const index = page - 1;
+// ===============================
+// PAGINATED SHOP COMMAND (FIXED)
+// ===============================
 
-    if (index < 0 || index >= shopPages.length) {
-        return message.reply(`🛒 Invalid page. Choose 1–${shopPages.length}.`);
+commands.shop = async (message, args) => {
+    let page = 1;
+
+    // If user typed a number: >shop 3
+    if (args[0] && !isNaN(args[0])) {
+        page = parseInt(args[0]);
     }
 
-    const data = shopPages[index];
+    // If user typed "next" or "prev"
+    if (args[0]?.toLowerCase() === "next") {
+        page = (message.lastShopPage || 1) + 1;
+    }
+
+    if (args[0]?.toLowerCase() === "prev") {
+        page = (message.lastShopPage || 1) - 1;
+    }
+
+    // Clamp page
+    if (page < 1) page = 1;
+    if (page > shopPages.length) page = shopPages.length;
+
+    // Save last page for navigation
+    message.lastShopPage = page;
+
+    const data = shopPages[page - 1];
 
     const embed = new EmbedBuilder()
         .setTitle(`🛒 PokéShop — Page ${page}/${shopPages.length} (${data.title})`)
         .setDescription(data.description)
-        .setColor(0xff99cc);
+        .setColor(0xff99cc)
+        .setFooter({ text: "Use >shop next, >shop prev, or >shop <page>" });
 
     await message.reply({ embeds: [embed] });
 };
+
+// ===============================
+// BUY COMMAND
+// ===============================
 
 commands.buy = async (message, args) => {
     ensurePlayer(message.author.id);
@@ -1186,6 +1224,10 @@ commands.buy = async (message, args) => {
 
     await message.reply(`🛒 You bought ${amount} ${item}(s) for ${cost} coins.`);
 };
+
+// ===============================
+// USE COMMAND
+// ===============================
 
 commands.use = async (message, args) => {
     ensurePlayer(message.author.id);
@@ -1239,7 +1281,7 @@ commands.use = async (message, args) => {
         return message.reply(`✨ Max Revive used! ${p.name.toUpperCase()} is fully restored.`);
     }
 
-    // rare candy (legacy)
+    // rare candy
     if (item === "rarecandy") {
         p.level += 1;
         player.items[item]--;
@@ -1248,7 +1290,7 @@ commands.use = async (message, args) => {
         return message.reply(`🍬 Rare Candy used! ${p.name.toUpperCase()} is now Lv.${p.level}.`);
     }
 
-    // mega stones (simple mega buff)
+    // mega stones
     if (["charizarditex", "charizarditey", "mewtwonitex", "mewtwonitey", "gengarite", "lucarionite"].includes(item)) {
         player.items[item]--;
         p.attack = Math.floor(p.attack * 1.5);
@@ -1278,7 +1320,7 @@ commands.use = async (message, args) => {
         return message.reply(`🍲 Max Soup used! ${p.name.toUpperCase()} feels stronger and bulkier.`);
     }
 
-    // TMs (simple flavor)
+    // TMs
     if (["tm01", "tm02", "tm03", "tmrandom"].includes(item)) {
         player.items[item]--;
         return message.reply(`📀 TM used on ${p.name.toUpperCase()}! It learned a powerful move (flavor).`);
