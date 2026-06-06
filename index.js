@@ -12,6 +12,7 @@ const ms = require("ms");
 // ===============================
 
 const TOKEN = process.env.TOKEN;
+const OWNER_ID = process.env.OWNER_ID;
 
 // ===============================
 // DISCORD CLIENT
@@ -1046,7 +1047,6 @@ commands.fightboss = async (message, args) => {
 
 // OWNER-ONLY SPAWN COMMAND
 commands.ownerspawn = async (message, args) => {
-    const OWNER_ID = "1223290780852944957"; // Eterni
 
     if (message.author.id !== OWNER_ID) {
         return message.reply("Only the owner can use this command.");
@@ -1596,13 +1596,12 @@ client.on("messageCreate", async (message) => {
     // increase counter
     channelMessageCount[channel.id]++;
 
-    // random threshold between 15–40 messages
-    const threshold = Math.floor(Math.random() * 25) + 15;
+    // spawn every 50 messages
+    const threshold = 50;
 
-    // spawn when threshold reached
     if (channelMessageCount[channel.id] >= threshold) {
         channelMessageCount[channel.id] = 0; // reset
-        spawnRandomPokemonChannel(channel);  // your existing function
+        spawnRandomPokemonChannel(channel);
     }
 });
 
