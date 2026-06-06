@@ -732,31 +732,6 @@ commands.spawn = async (message) => {
     }
 };
 
-// OWNER-ONLY SPAWN (any Pokémon by name or ID)
-commands.ownerspawn = async (message, args) => {
-    if (message.author.id !== OWNER_ID) {
-        return message.reply("Only the owner can use this command.");
-    }
-
-    const query = args.join(" ").toLowerCase();
-    if (!query) return message.reply("Specify a Pokémon name or ID.");
-
-    const poke = await getPokemon(query);
-    if (!poke) return message.reply("⚠️ Failed to fetch Pokémon.");
-
-    const instance = createPokemonInstance(poke);
-    channelSpawns[message.channel.id] = instance;
-
-    if (instance.image) {
-        await message.channel.send({
-            content: `🌿 A wild ${instance.name.toUpperCase()} appeared! (Owner Spawn)\nUse >catchwild to try catching it.`,
-            files: [instance.image]
-        });
-    } else {
-        await message.channel.send(`🌿 A wild ${instance.name.toUpperCase()} appeared! (Owner Spawn)\nUse >catchwild to try catching it.\n(No image available)`);
-    }
-};
-
 // auto-spawn helper (Pokétwo-style)
 async function spawnRandomPokemonChannel(channel) {
     const id = Math.floor(Math.random() * 151) + 1;
@@ -1128,13 +1103,23 @@ const shopPages = [
     },
     {
         title: "Mega Stones",
-        description:
-            "⚜️ **Charizardite X** — 1000 coins\n" +
-            "⚜️ **Charizardite Y** — 1000 coins\n" +
-            "⚜️ **Mewtwonite X** — 1200 coins\n" +
-            "⚜️ **Mewtwonite Y** — 1200 coins\n" +
-            "⚜️ **Gengarite** — 900 coins\n" +
-            "⚜️ **Lucarionite** — 900 coins"
+description:
+    "⚜️ **Charizardite X** — 1000 coins\n" +
+    "⚜️ **Charizardite Y** — 1000 coins\n" +
+    "⚜️ **Mewtwonite X** — 1200 coins\n" +
+    "⚜️ **Mewtwonite Y** — 1200 coins\n" +
+    "⚜️ **Gengarite** — 900 coins\n" +
+    "⚜️ **Lucarionite** — 900 coins\n" +
+    "⚜️ **Blastoiseinite** — 1000 coins\n" +
+    "⚜️ **Venusaurite** — 1000 coins\n" +
+    "⚜️ **Blazikenite** — 1200 coins\n" +
+    "⚜️ **Sceptilite** — 1000 coins\n" +
+    "⚜️ **Swampertite** — 1000 coins\n" +
+    "⚜️ **Gardevoirite** — 900 coins\n" +
+    "⚜️ **Tyranitarite** — 1200 coins\n" +
+    "⚜️ **Salamencite** — 1200 coins\n"
+
+
     },
     {
         title: "Gigantamax Items",
@@ -1206,29 +1191,44 @@ commands.buy = async (message, args) => {
     if (!item) return message.reply("🛒 Specify an item to buy. Example: >buy pokeball 3");
 
     const prices = {
-        pokeball: 50,
-        greatball: 150,
-        ultraball: 300,
-        masterball: 1000,
-        potion: 100,
-        superpotion: 200,
-        hyperpotion: 400,
-        revive: 500,
-        maxrevive: 800,
-        charizarditex: 1000,
-        charizarditey: 1000,
-        mewtwonitex: 1200,
-        mewtwonitey: 1200,
-        gengarite: 900,
-        lucarionite: 900,
-        dynamaxband: 1500,
-        gmaxcandy: 700,
-        maxsoup: 900,
-        tm01: 300,
-        tm02: 300,
-        tm03: 300,
-        tmrandom: 500
-    };
+    pokeball: 50,
+    greatball: 150,
+    ultraball: 300,
+    masterball: 1000,
+
+    potion: 100,
+    superpotion: 200,
+    hyperpotion: 400,
+    revive: 500,
+    maxrevive: 800,
+
+    // Mega Stones
+    charizarditex: 1000,
+    charizarditey: 1000,
+    mewtwonitex: 1200,
+    mewtwonitey: 1200,
+    gengarite: 900,
+    lucarionite: 900,
+    blastoisinite: 1000,
+    venusaurite: 1000,
+    blazikenite: 1200,
+    sceptilite: 1000,
+    swampertite: 1000,
+    gardevoirite: 900,
+    tyranitarite: 1200,
+    salamencite: 1200,
+
+    // Gigantamax / Dynamax
+    dynamaxband: 1500,
+    gmaxcandy: 700,
+    maxsoup: 900,
+
+    // TMs
+    tm01: 300,
+    tm02: 300,
+    tm03: 300,
+    tmrandom: 500
+};
 
     if (!prices[item]) return message.reply("🛒 That item does not exist. Use >shop.");
 
