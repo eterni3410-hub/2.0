@@ -54,8 +54,8 @@ let messageCount = 0;
 const spawnThreshold = 15;
 const channelSpawns = {};
 
-// OWNER ID (for owner-only spawn)
-const OWNER_ID = "YOUR_USER_ID_HERE";
+ // OWNER ID (for owner-only spawn)
+const OWNER_ID = "1223290780852944957";
 
 // HELPER FUNCTIONS
 // ===============================
