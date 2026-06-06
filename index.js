@@ -54,9 +54,6 @@ let messageCount = 0;
 const spawnThreshold = 15;
 const channelSpawns = {};
 
- // OWNER ID (for owner-only spawn)
-const OWNER_ID = "1223290780852944957";
-
 // HELPER FUNCTIONS
 // ===============================
 
@@ -1579,6 +1576,35 @@ commands.giveaway = async (message, args) => {
         );
     }
 };
+
+// ===============================
+// AUTO-SPAWN SYSTEM (Pokétwo-style)
+// ===============================
+
+const channelMessageCount = {}; // track messages per channel
+
+client.on("messageCreate", async (message) => {
+    if (message.author.bot) return;
+
+    const channel = message.channel;
+
+    // initialize counter
+    if (!channelMessageCount[channel.id]) {
+        channelMessageCount[channel.id] = 0;
+    }
+
+    // increase counter
+    channelMessageCount[channel.id]++;
+
+    // random threshold between 15–40 messages
+    const threshold = Math.floor(Math.random() * 25) + 15;
+
+    // spawn when threshold reached
+    if (channelMessageCount[channel.id] >= threshold) {
+        channelMessageCount[channel.id] = 0; // reset
+        spawnRandomPokemonChannel(channel);  // your existing function
+    }
+});
 
 // ===============================
 // READY + LOGIN
