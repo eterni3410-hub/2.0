@@ -6,6 +6,25 @@
 const { Client, GatewayIntentBits, Partials, PermissionsBitField, EmbedBuilder } = require("discord.js");
 const fetch = require("node-fetch");
 const ms = require("ms");
+const db = require("quick.db"); // ✅ ONLY declare this once
+
+// =====================
+// Quick.db Coin System
+// =====================
+
+function getCoins(userId) {
+  return db.get(`coins_${userId}`) || 100;
+}
+
+function addCoins(userId, amount) {
+  db.add(`coins_${userId}`, amount);
+}
+
+function removeCoins(userId, amount) {
+  const current = getCoins(userId);
+  const newAmount = Math.max(0, current - amount);
+  db.set(`coins_${userId}`, newAmount);
+}
 
 // ===============================
 // KEYS (USE ENV VARIABLES)
@@ -191,7 +210,6 @@ commands.uptime = async (message) => {
     const seconds = totalSeconds % 60;
 
     message.reply(`⏱️ **Uptime:** ${hours}h ${minutes}m ${seconds}s`);
-};
 
 // ===============================
 // MODERATION COMMANDS
