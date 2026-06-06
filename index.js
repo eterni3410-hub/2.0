@@ -1045,6 +1045,34 @@ commands.fightboss = async (message, args) => {
 
     await message.reply(text);
 };
+// OWNER-ONLY SPAWN COMMAND
+commands.ownerspawn = async (message, args) => {
+    const OWNER_ID = "1223290780852944957"; // Eterni
+
+    if (message.author.id !== OWNER_ID) {
+        return message.reply("Only the owner can use this command.");
+    }
+
+    const name = args.join(" ");
+    if (!name) return message.reply("Specify a Pokémon name or ID.");
+
+    const data = await getPokemonByNameOrId(name);
+    if (!data) return message.reply("Invalid Pokémon name or ID.");
+
+    const pokemon = createPokemonInstance(data);
+
+    channelSpawns[message.channel.id] = pokemon;
+
+    if (pokemon.image) {
+        return message.reply({
+            content: `✨ **A wild ${pokemon.name.toUpperCase()} has appeared!** (Owner spawn)`,
+            files: [pokemon.image]
+        });
+    }
+
+    return message.reply(`✨ **A wild ${pokemon.name.toUpperCase()} has appeared!** (Owner spawn)`);
+};
+
 // ===============================
 // SHOP (5-page embed layout)
 // ===============================
