@@ -679,6 +679,9 @@ commands.stand = async (message) => {
 // POKEMON SYSTEM (QuickDB v9 SAVING)
 // ===============================
 
+// Wild Pokémon storage
+const channelSpawns = {};
+
 commands.pokemon = async (message) => {
     const id = Math.floor(Math.random() * 151) + 1;
     const poke = await getPokemon(id);
@@ -1278,18 +1281,21 @@ commands.use = async (message, args) => {
     if (item === "potion") {
         p.hp = Math.min(p.maxHp, p.hp + 30);
         player.items[item]--;
+        await db.set(`player_${message.author.id}`, player);
         return message.reply(`🧪 Potion used on ${p.name.toUpperCase()}! HP is now ${p.hp}/${p.maxHp}.`);
     }
 
     if (item === "superpotion") {
         p.hp = Math.min(p.maxHp, p.hp + 60);
         player.items[item]--;
+        await db.set(`player_${message.author.id}`, player);
         return message.reply(`🧪 Super Potion used on ${p.name.toUpperCase()}! HP is now ${p.hp}/${p.maxHp}.`);
     }
 
     if (item === "hyperpotion") {
         p.hp = Math.min(p.maxHp, p.hp + 120);
         player.items[item]--;
+        await db.set(`player_${message.author.id}`, player);
         return message.reply(`🧪 Hyper Potion used on ${p.name.toUpperCase()}! HP is now ${p.hp}/${p.maxHp}.`);
     }
 
@@ -1297,6 +1303,7 @@ commands.use = async (message, args) => {
         if (p.hp > 0) return message.reply("🧪 That Pokémon is not fainted.");
         p.hp = Math.floor(p.maxHp * 0.5);
         player.items[item]--;
+        await db.set(`player_${message.author.id}`, player);
         return message.reply(`☀️ Revive used! ${p.name.toUpperCase()} is back with ${p.hp}/${p.maxHp} HP.`);
     }
 
@@ -1304,6 +1311,7 @@ commands.use = async (message, args) => {
         if (p.hp > 0) return message.reply("🧪 That Pokémon is not fainted.");
         p.hp = p.maxHp;
         player.items[item]--;
+        await db.set(`player_${message.author.id}`, player);
         return message.reply(`✨ Max Revive used! ${p.name.toUpperCase()} is fully restored.`);
     }
 
@@ -1313,6 +1321,7 @@ commands.use = async (message, args) => {
         player.items[item]--;
         p = await tryEvolve(p);
         player.team[slot - 1] = p;
+        await db.set(`player_${message.author.id}`, player);
         return message.reply(`🍬 Rare Candy used! ${p.name.toUpperCase()} is now Lv.${p.level}.`);
     }
 
@@ -1322,6 +1331,7 @@ commands.use = async (message, args) => {
         p.attack = Math.floor(p.attack * 1.5);
         p.defense = Math.floor(p.defense * 1.5);
         p.name = `Mega ${p.name}`;
+        await db.set(`player_${message.author.id}`, player);
         return message.reply(`⚜️ ${item} used! ${p.name.toUpperCase()} has mega evolved and gained boosted stats.`);
     }
 
@@ -1330,12 +1340,14 @@ commands.use = async (message, args) => {
         player.items[item]--;
         p.maxHp = Math.floor(p.maxHp * 1.3);
         p.hp = p.maxHp;
+        await db.set(`player_${message.author.id}`, player);
         return message.reply(`✨ G-Max Candy used! ${p.name.toUpperCase()} has increased HP and is ready to Gigantamax.`);
     }
 
     if (item === "dynamaxband") {
         player.items[item]--;
         p.attack = Math.floor(p.attack * 1.2);
+        await db.set(`player_${message.author.id}`, player);
         return message.reply(`✨ Dynamax Band used! ${p.name.toUpperCase()}'s attack has increased.`);
     }
 
@@ -1343,12 +1355,14 @@ commands.use = async (message, args) => {
         player.items[item]--;
         p.maxHp = Math.floor(p.maxHp * 1.2);
         p.attack = Math.floor(p.attack * 1.2);
+        await db.set(`player_${message.author.id}`, player);
         return message.reply(`🍲 Max Soup used! ${p.name.toUpperCase()} feels stronger and bulkier.`);
     }
 
     // TMs
     if (["tm01", "tm02", "tm03", "tmrandom"].includes(item)) {
         player.items[item]--;
+        await db.set(`player_${message.author.id}`, player);
         return message.reply(`📀 TM used on ${p.name.toUpperCase()}! It learned a powerful move (flavor).`);
     }
 
@@ -1364,125 +1378,6 @@ commands.gigantamax = async (message, args) => {
     return message.reply("✨ Use `>use gmaxcandy <slot>` or `>use dynamaxband <slot>` to power up for Gigantamax.");
 };
 
-/* ===============================
-   POKEMON ENGINE (REQUIRED)
-   =============================== */
-
-const pokemonPlayers = {};
-const bossSpawns = {};
-
-function ensurePlayer(id) {
-    if (!pokemonPlayers[id]) {
-        pokemonPlayers[id] = {
-            xp: 0,
-            items: {
-                pokeball: 5,
-                greatball: 0,
-                ultraball: 0,
-                masterball: 0,
-                potion: 0,
-                superpotion: 0,
-                hyperpotion: 0,
-                revive: 0,
-                maxrevive: 0,
-                rarecandy: 0,
-                charizarditex: 0,
-                charizarditey: 0,
-                mewtwonitex: 0,
-                mewtwonitey: 0,
-                gengarite: 0,
-                lucarionite: 0,
-                dynamaxband: 0,
-                gmaxcandy: 0,
-                maxsoup: 0,
-                tm01: 0,
-                tm02: 0,
-                tm03: 0,
-                tmrandom: 0
-            },
-            team: [],
-            spawn: null,
-            trade: null
-        };
-    }
-}
-
-async function getPokemon(id) {
-    try {
-        const res = await fetch(`https://pokeapi.co/api/v2/pokemon/${id}`);
-        if (!res.ok) return null;
-
-        const data = await res.json();
-
-        return {
-            id: data.id,
-            name: data.name,
-            types: data.types.map(t => t.type.name),
-            image: data.sprites.other["official-artwork"].front_default,
-            stats: data.stats
-        };
-    } catch {
-        return null;
-    }
-}
-
-function createPokemonInstance(p) {
-    const hp = p.stats.find(s => s.stat.name === "hp").base_stat;
-    const attack = p.stats.find(s => s.stat.name === "attack").base_stat;
-    const defense = p.stats.find(s => s.stat.name === "defense").base_stat;
-
-    return {
-        id: p.id,
-        name: p.name,
-        level: 5,
-        maxHp: hp,
-        hp: hp,
-        attack: attack,
-        defense: defense,
-        types: p.types,
-        image: p.image
-    };
-}
-
-function gainXp(player, amount) {
-    player.xp += amount;
-}
-
-async function tryEvolve(p) {
-    try {
-        const res = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${p.id}`);
-        if (!res.ok) return p;
-
-        const data = await res.json();
-        const evo = data.evolution_chain?.url;
-        if (!evo) return p;
-
-        const evoRes = await fetch(evo);
-        const evoData = await evoRes.json();
-
-        const chain = evoData.chain;
-        let current = chain;
-
-        while (current) {
-            if (current.species.name === p.name) {
-                if (current.evolves_to.length > 0) {
-                    const next = current.evolves_to[0].species.name;
-                    const evoPoke = await getPokemon(next);
-                    if (evoPoke) {
-                        const newP = createPokemonInstance(evoPoke);
-                        newP.level = p.level;
-                        return newP;
-                    }
-                }
-            }
-            current = current.evolves_to[0];
-        }
-
-        return p;
-    } catch {
-        return p;
-    }
-}
 
 // ===============================
 // GIVEAWAY SYSTEM (FIXED + GIF)
