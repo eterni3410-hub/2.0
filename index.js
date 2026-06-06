@@ -1043,7 +1043,10 @@ commands.fightboss = async (message, args) => {
 
     text += `👑 Boss HP: ${boss.hp}/${boss.maxHp * 5}`;
 
-    await message.reply(text);
+        await message.reply(text);
+}; // <-- closes commands.fightboss properly
+
+
 // OWNER-ONLY SPAWN COMMAND
 commands.ownerspawn = async (message, args) => {
     const OWNER_ID = "1223290780852944957"; // Eterni
