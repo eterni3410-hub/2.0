@@ -7,6 +7,9 @@
 // IMPORTS
 // ===============================
 
+// ⭐ FORCE QUICKDB TO JSON MODE (NO SQLITE, NO better-sqlite3)
+process.env.QUICKDB_DRIVER = "json";
+
 const { 
     Client, 
     GatewayIntentBits, 
@@ -18,8 +21,9 @@ const {
 const fetch = require("node-fetch");
 const ms = require("ms");
 
+// ⭐ QUICKDB — FORCED JSON DRIVER (SQLite DISABLED)
 const { QuickDB } = require("quick.db");
-const db = new QuickDB();
+const db = new QuickDB({ driver: "json" });
 
 // ===============================
 // USER DATA STRUCTURES
