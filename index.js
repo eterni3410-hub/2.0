@@ -2630,8 +2630,6 @@ commands.uptime = async (message) => {
 // HELP COMMAND (Updated for Casino + Pokémon + Shop)
 // ===============================
 
-const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
-
 module.exports = {
     name: "help",
     description: "Shows the paginated help menu.",
