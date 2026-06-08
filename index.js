@@ -2501,9 +2501,10 @@ commands.unban = async (message, args) => {
 
     message.guild.members.unban(userId).catch(() => {});
 
-    const embed = new EmbedBuilder()
-        .setColor(0x0f859d)
-        .setTitle("🔓 Member Unbanned")
+    const unbanEmbed = new EmbedBuilder()
+    .setColor(0x0f859d)
+    .setTitle("🔓 Member Unbanned")
+       
         .setDescription(`User with ID **${userId}** has been unbanned.`)
         .setFooter({ text: "PokeChaos • Moderation" });
 
@@ -2529,9 +2530,10 @@ commands.mute = async (message, args) => {
 
     await target.timeout(duration * 60 * 1000, reason).catch(() => {});
 
-    const embed = new EmbedBuilder()
-        .setColor(0x0f859d)
-        .setTitle("🔇 Member Muted")
+   const muteEmbed = new EmbedBuilder()
+    .setColor(0x0f859d)
+    .setTitle("🔇 Member Muted")
+      
         .setDescription(
             `**User:** ${target.user.tag}\n` +
             `**Duration:** ${duration} minutes\n` +
