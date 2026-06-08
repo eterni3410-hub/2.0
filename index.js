@@ -23,7 +23,7 @@ const ms = require("ms");
 
 // ⭐ QUICKDB — FORCED JSON DRIVER (SQLite DISABLED)
 const { QuickDB } = require("quick.db");
-const db = new QuickDB({ driver: "json" });
+const db = new QuickDB();
 
 // ===============================
 // USER DATA STRUCTURES
