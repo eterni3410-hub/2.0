@@ -3,6 +3,10 @@
    CLEANED + FIXED + IMPROVED
    =============================== */
 
+// ===============================
+// IMPORTS
+// ===============================
+
 const { 
     Client, 
     GatewayIntentBits, 
@@ -13,13 +17,20 @@ const {
 
 const fetch = require("node-fetch");
 const ms = require("ms");
-const db = require("quick.db");
+
+// ⭐ QuickDB v9 (CORRECT VERSION)
+const { QuickDB } = require("quick.db");
+const db = new QuickDB({ filePath: "./database.sqlite" });
+
+// ===============================
+// USER DATA STRUCTURES
+// ===============================
 
 let userInventory = {};
 let userAFK = {};
 let userReminders = [];
 let activeGiveaways = {};
-let userPokemon = {}; // <-- FIXED
+let userPokemon = {}; // fixed
 
 // ===============================
 // UNIVERSAL EMBED STYLE
@@ -30,24 +41,25 @@ function chaosEmbed(title, description) {
         .setColor(0x0f859d)
         .setTitle(title)
         .setDescription(description);
-} // <-- THIS is the brace you were missing
-
-// ===============================
-// Quick.db Coin System
-// ===============================
-
-function getCoins(userId) {
-  return db.get(`coins_${userId}`) || 100;
 }
 
-function addCoins(userId, amount) {
-  db.add(`coins_${userId}`, amount);
+// ===============================
+// UNIFIED ECONOMY SYSTEM (QuickDB v9)
+// ===============================
+
+async function getCoins(userId) {
+    const coins = await db.get(`coins_${userId}`);
+    return coins ?? 0;
 }
 
-function removeCoins(userId, amount) {
-  const current = getCoins(userId);
-  const newAmount = Math.max(0, current - amount);
-  db.set(`coins_${userId}`, newAmount);
+async function addCoins(userId, amount) {
+    const current = await getCoins(userId);
+    await db.set(`coins_${userId}`, current + amount);
+}
+
+async function removeCoins(userId, amount) {
+    const current = await getCoins(userId);
+    await db.set(`coins_${userId}`, Math.max(0, current - amount));
 }
 
 // ===============================
@@ -81,38 +93,119 @@ client.once("ready", () => {
 const PREFIX = ">";
 const commands = {};
 
+// AI chat toggle
 const aiChatEnabled = {};
 
+// Economy + cooldowns
 const economy = {};
 const dailyCooldown = {};
 
+// Mini‑games
 const unoGames = {};
 const hangmanGames = {};
 const hangmanWords = ["apple", "banana", "dragon", "pokemon", "discord", "chaos"];
 
-const blackjackGames = {};
+// Casino systems
+const casinoCooldown = new Map();
+const blackjackGames = new Map();   // <— FIXED (must be Map, not {})
+const JACKPOT_KEY = "casino_jackpot";
+const bossSpawns = {};              // <— FIXED (needed for >boss)
 
+// Pokémon auto‑spawn
 let messageCount = 0;
 const spawnThreshold = 15;
+
+// Channel wild spawns (Pokétwo style)
+const channelSpawns = {};           // <— REQUIRED for >catchwild
+
+// ===============================
+// BOSS GENERATOR
+// ===============================
+
+function generateBoss() {
+    const bosses = [
+        { name: "Mega Charizard X", hp: 600, sprite: "https://img.pokemondb.net/artwork/large/charizard-mega-x.jpg" },
+        { name: "Rayquaza", hp: 750, sprite: "https://img.pokemondb.net/artwork/large/rayquaza.jpg" },
+        { name: "Giratina (Origin)", hp: 800, sprite: "https://img.pokemondb.net/artwork/large/giratina-origin.jpg" },
+        { name: "Zacian (Crowned)", hp: 850, sprite: "https://img.pokemondb.net/artwork/large/zacian-crowned.jpg" }
+    ];
+
+    return bosses[Math.floor(Math.random() * bosses.length)];
+}
+
+// ===============================
+// >boss — Spawn or Show Boss
+// ===============================
+
+commands.boss = async (message) => {
+    const channelId = message.channel.id;
+
+    // If no boss exists, spawn one
+    if (!bossSpawns[channelId]) {
+        const newBoss = generateBoss();
+        bossSpawns[channelId] = {
+            name: newBoss.name,
+            hp: newBoss.hp,
+            maxHp: newBoss.hp,
+            sprite: newBoss.sprite
+        };
+    }
+
+    const boss = bossSpawns[channelId];
+
+    const embed = new EmbedBuilder()
+        .setColor(0xff0000)
+        .setTitle(`⚠️ Boss Appeared: ${boss.name}`)
+        .setDescription(
+            `❤️ **HP:** ${boss.hp}/${boss.maxHp}\n` +
+            `⚔️ Use \`>fightboss\` to attack!`
+        )
+        .setImage(boss.sprite);
+
+    return message.reply({ embeds: [embed] });
+};
+
+// ===============================
+// >fightboss — Attack the Boss
+// ===============================
+
+commands.fightboss = async (message) => {
+    const channelId = message.channel.id;
+    const boss = bossSpawns[channelId];
+
+    if (!boss) {
+        return message.reply("❌ No boss is currently active! Use `>boss` to spawn one.");
+    }
+
+    // Player damage (random 40–120)
+    const dmg = Math.floor(Math.random() * 80) + 40;
+    boss.hp = Math.max(0, boss.hp - dmg);
+
+    let text = `⚔️ **You attack ${boss.name}!**\n`;
+    text += `💥 Damage dealt: **${dmg}**\n`;
+    text += `❤️ Boss HP: **${boss.hp}/${boss.maxHp}**\n\n`;
+
+    // Boss defeated
+    if (boss.hp <= 0) {
+        const reward = Math.floor(Math.random() * 400) + 200;
+
+        // ⭐ FIXED — use real QuickDB economy
+        await addCoins(message.author.id, reward);
+
+        text += `🎉 **You defeated the boss!**\n`;
+        text += `💰 Reward: **${reward} coins**\n`;
+
+        delete bossSpawns[channelId];
+    }
+
+    return message.reply(text);
+};
 
 // ===============================
 // HELPER FUNCTIONS
 // ===============================
 
-function getUserBalance(id) {
-    if (!economy[id]) economy[id] = { coins: 100 };
-    return economy[id].coins;
-}
-
-function addCoinsLocal(id, amount) {
-    getUserBalance(id);
-    economy[id].coins += amount;
-}
-
-function removeCoinsLocal(id, amount) {
-    getUserBalance(id);
-    economy[id].coins -= amount;
-}
+// ⭐ ALL OLD ECONOMY CODE REMOVED — it was breaking bossSpawns
 
 function formatHangmanWord(word, guessed) {
     return [...word].map(c => guessed.includes(c) ? c : "-").join("");
@@ -156,84 +249,6 @@ function calculateHand(hand) {
 
     return total;
 }
-
-// ===============================
-// COMMAND SYSTEM
-// ===============================
-
-async function handleCommand(message, commandName, args) {
-    if (commands[commandName]) {
-        return commands[commandName](message, args);
-    } else {
-        return message.reply({ 
-            embeds: [chaosEmbed("❓ Unknown Command", "Use `>help` to see all commands.")] 
-        });
-    }
-}
-
-// ===============================
-// MAIN MESSAGE HANDLER
-// ===============================
-
-client.on("messageCreate", async (message) => {
-    if (message.author.bot) return;
-
-    if (aiChatEnabled[message.channel.id] && !message.content.startsWith(PREFIX)) {
-        return;
-    }
-
-    if (!message.content.startsWith(PREFIX)) {
-        messageCount++;
-        if (messageCount >= spawnThreshold) {
-            messageCount = 0;
-            if (Math.random() < 0.4) {
-                await spawnRandomPokemonChannel(message.channel);
-            }
-        }
-        return;
-    }
-
-    const args = message.content.slice(PREFIX.length).trim().split(/\s+/);
-    const commandName = args.shift()?.toLowerCase();
-    if (!commandName) return;
-
-    try {
-        await handleCommand(message, commandName, args);
-    } catch (err) {
-        console.error(err);
-        message.reply({ embeds: [chaosEmbed("⚠️ Error", "Something went wrong running this command.")] });
-    }
-});
-
-// ===============================
-// BASIC COMMANDS
-// ===============================
-
-commands.ping = async (message) => {
-    message.reply({ embeds: [chaosEmbed("🏓 Pong!", "Your latency is crisp.")] });
-};
-
-commands.help = async (message) => {
-    const desc =
-        "💰 Economy: `>balance`, `>daily`, `>give`, `>leaderboard`\n" +
-        "🎰 Gambling: `>coinflip`, `>slots`, `>blackjack`, `>hit`, `>stand`\n" +
-        "🎮 Games: `>uno`, `>hangman`, `>guess`, `>hangmanend`\n" +
-        "⚔️ Pokémon: `>pokemon`, `>pokedex`, `>spawn`, `>ownerspawn`, `>catch`, `>catchwild`, `>team`, `>release`, `>trade`, `>fight`, `>boss`, `>fightboss`, `>gigantamax`, `>mega`, `>shop`, `>buy`, `>use`\n" +
-        "🧭 Utility: `>ping`, `>uptime`";
-
-    message.reply({ embeds: [chaosEmbed("📜 PokeChaos Command Menu", desc)] });
-};
-
-commands.uptime = async (message) => {
-    const totalSeconds = Math.floor(process.uptime());
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-
-    message.reply({ 
-        embeds: [chaosEmbed("⏱️ Uptime", `${hours}h ${minutes}m ${seconds}s`)] 
-    });
-};
 
 // ===============================
 // MODERATION COMMANDS
@@ -694,6 +709,364 @@ commands.hangmanend = async (message) => {
             chaosEmbed("🛑 Hangman Ended", "The Hangman game has been stopped.")
         ]
     });
+};
+// ===============================
+// UNIFIED ECONOMY SYSTEM (QuickDB v9)
+// ===============================
+
+async function getCoins(userId) {
+    const coins = await db.get(`coins_${userId}`);
+    return coins ?? 0; // start at 0, not 100
+}
+
+async function addCoins(userId, amount) {
+    const current = await getCoins(userId);
+    await db.set(`coins_${userId}`, current + amount);
+}
+
+async function removeCoins(userId, amount) {
+    const current = await getCoins(userId);
+    const newAmount = Math.max(0, current - amount);
+    await db.set(`coins_${userId}`, newAmount);
+}
+
+
+// ===============================
+// PREMIUM ANIMATED CASINO SYSTEM
+// ===============================
+
+// Assumes:
+// - getCoins(userId)
+// - addCoins(userId, amount)
+// - removeCoins(userId, amount)
+// - commands object exists
+
+
+// Helper: cooldown check (5s)
+function canUseCasino(userId) {
+    const now = Date.now();
+    const last = casinoCooldown.get(userId) || 0;
+    if (now - last < 5000) return false;
+    casinoCooldown.set(userId, now);
+    return true;
+}
+
+// Helper: get jackpot
+async function getJackpot() {
+    const val = await db.get(JACKPOT_KEY);
+    return val || 0;
+}
+
+// Helper: add to jackpot
+async function addToJackpot(amount) {
+    const current = await getJackpot();
+    await db.set(JACKPOT_KEY, current + amount);
+}
+
+// Helper: reset jackpot
+async function resetJackpot() {
+    await db.set(JACKPOT_KEY, 0);
+}
+
+// ===============================
+// SLOTS (Animated 3x3, jackpots, near-miss)
+// ===============================
+
+const slotSymbols = [
+    { emoji: "🍒", weight: 30, payout: 2 },
+    { emoji: "🍋", weight: 25, payout: 3 },
+    { emoji: "🍇", weight: 20, payout: 4 },
+    { emoji: "⭐", weight: 15, payout: 6 },
+    { emoji: "💎", weight: 8, payout: 10 },
+    { emoji: "👑", weight: 2, payout: 50 } // jackpot symbol
+];
+
+function rollSymbol() {
+    const total = slotSymbols.reduce((a, s) => a + s.weight, 0);
+    let r = Math.random() * total;
+    for (const s of slotSymbols) {
+        if (r < s.weight) return s;
+        r -= s.weight;
+    }
+    return slotSymbols[0];
+}
+
+function formatReels(reels) {
+    return (
+        `${reels[0][0].emoji} | ${reels[0][1].emoji} | ${reels[0][2].emoji}\n` +
+        `${reels[1][0].emoji} | ${reels[1][1].emoji} | ${reels[1][2].emoji}\n` +
+        `${reels[2][0].emoji} | ${reels[2][1].emoji} | ${reels[2][2].emoji}`
+    );
+}
+
+function calculateSlotsWin(reels, bet) {
+    let multiplier = 0;
+    let jackpotHit = false;
+
+    // Check middle row for main win
+    const mid = reels[1];
+    if (mid[0].emoji === mid[1].emoji && mid[1].emoji === mid[2].emoji) {
+        multiplier = mid[0].payout;
+        if (mid[0].emoji === "👑") jackpotHit = true;
+    }
+
+    // Small bonus for diagonals
+    const diag1 = [reels[0][0], reels[1][1], reels[2][2]];
+    const diag2 = [reels[0][2], reels[1][1], reels[2][0]];
+    if (diag1.every(s => s.emoji === diag1[0].emoji)) multiplier += Math.floor(diag1[0].payout / 2);
+    if (diag2.every(s => s.emoji === diag2[0].emoji)) multiplier += Math.floor(diag2[0].payout / 2);
+
+    const win = bet * multiplier;
+    return { win, multiplier, jackpotHit };
+}
+
+commands.slots = async (message, args) => {
+    const userId = message.author.id;
+
+    if (!canUseCasino(userId)) {
+        return message.reply("⏳ Slow down! Wait a few seconds before spinning again.");
+    }
+
+    const bet = parseInt(args[0]) || 10;
+    if (bet <= 0) return message.reply("🎰 Bet must be a positive number.");
+    if (bet > 100000) return message.reply("🎰 Max bet is 100,000 coins.");
+
+    const coins = await getCoins(userId);
+    if (coins < bet) return message.reply("💸 You don't have enough coins for that bet.");
+
+    await removeCoins(userId, bet);
+    await addToJackpot(Math.floor(bet * 0.1)); // 10% to jackpot
+
+    // Animated reels
+    const spinningMsg = await message.reply("🎰 Spinning the reels...\n[ 🎞️ | 🎞️ | 🎞️ ]\n[ 🎞️ | 🎞️ | 🎞️ ]\n[ 🎞️ | 🎞️ | 🎞️ ]");
+
+    const reels = [
+        [rollSymbol(), rollSymbol(), rollSymbol()],
+        [rollSymbol(), rollSymbol(), rollSymbol()],
+        [rollSymbol(), rollSymbol(), rollSymbol()]
+    ];
+
+    const { win, multiplier, jackpotHit } = calculateSlotsWin(reels, bet);
+    const jackpot = await getJackpot();
+
+    let resultText = `🎰 **Premium Slots** — Bet: ${bet} coins\n\n`;
+    resultText += formatReels(reels) + "\n\n";
+
+    if (win > 0) {
+        await addCoins(userId, win);
+        resultText += `✨ You won **${win} coins** (x${multiplier})!\n`;
+    } else {
+        resultText += "💀 No win this time...\n";
+    }
+
+    if (jackpotHit) {
+        await addCoins(userId, jackpot);
+        await resetJackpot();
+        resultText += `👑 **JACKPOT!** You also won the jackpot of **${jackpot} coins!**\n`;
+    } else {
+        // Near-miss tease
+        resultText += `💰 Current jackpot: **${jackpot} coins**\n`;
+    }
+
+    await spinningMsg.edit(resultText);
+};
+
+// ===============================
+// COINFLIP (streaks, all-in mode)
+// ===============================
+
+const streakKey = id => `cf_streak_${id}`;
+
+async function getStreak(id) {
+    return (await db.get(streakKey(id))) || 0;
+}
+
+async function setStreak(id, val) {
+    await db.set(streakKey(id), val);
+}
+
+commands.coinflip = async (message, args) => {
+    const userId = message.author.id;
+
+    if (!canUseCasino(userId)) {
+        return message.reply("⏳ Slow down! Wait a few seconds before flipping again.");
+    }
+
+    let betArg = args[0]?.toLowerCase();
+    const choice = (args[1]?.toLowerCase() === "tails") ? "tails" : "heads";
+
+    const coins = await getCoins(userId);
+    let bet = 0;
+
+    if (betArg === "all" || betArg === "all-in") {
+        bet = coins;
+    } else {
+        bet = parseInt(betArg) || 10;
+    }
+
+    if (bet <= 0) return message.reply("🪙 Bet must be a positive number.");
+    if (bet > coins) return message.reply("💸 You don't have enough coins for that bet.");
+    if (bet > 200000) return message.reply("🪙 Max coinflip bet is 200,000 coins.");
+
+    await removeCoins(userId, bet);
+
+    const streak = await getStreak(userId);
+    const bonusMultiplier = 1 + Math.min(streak * 0.1, 1.0); // up to x2
+
+    const flip = Math.random() < 0.5 ? "heads" : "tails";
+
+    let text = `🪙 **Coinflip** — Bet: ${bet} coins\nYou chose **${choice.toUpperCase()}**...\n\n`;
+    text += `🌀 The coin spins...\n`;
+
+    await message.channel.send("🌀 ...");
+
+    text += `🪙 It lands on **${flip.toUpperCase()}**!\n\n`;
+
+    if (flip === choice) {
+        const win = Math.floor(bet * 2 * bonusMultiplier);
+        await addCoins(userId, win);
+        await setStreak(userId, streak + 1);
+        text += `✅ You **WIN**! You receive **${win} coins** (streak x${bonusMultiplier.toFixed(1)}).\n`;
+        text += `🔥 Win streak: **${streak + 1}**\n`;
+    } else {
+        await setStreak(userId, 0);
+        text += `❌ You **LOSE**. Better luck next time.\n`;
+        text += `💤 Win streak reset.\n`;
+    }
+
+    await message.reply(text);
+};
+
+// ===============================
+// BLACKJACK (multi-round, animated)
+// ===============================
+
+function drawCard() {
+    const ranks = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+    const suits = ["♠", "♥", "♦", "♣"];
+    const rank = ranks[Math.floor(Math.random() * ranks.length)];
+    const suit = suits[Math.floor(Math.random() * suits.length)];
+    return { rank, suit };
+}
+
+function cardValue(card) {
+    if (["J", "Q", "K"].includes(card.rank)) return 10;
+    if (card.rank === "A") return 11;
+    return parseInt(card.rank);
+}
+
+function handValue(hand) {
+    let total = hand.reduce((sum, c) => sum + cardValue(c), 0);
+    let aces = hand.filter(c => c.rank === "A").length;
+    while (total > 21 && aces > 0) {
+        total -= 10;
+        aces--;
+    }
+    return total;
+}
+
+function formatHand(hand) {
+    return hand.map(c => `${c.rank}${c.suit}`).join(" ");
+}
+
+commands.blackjack = async (message, args) => {
+    const userId = message.author.id;
+
+    if (!canUseCasino(userId)) {
+        return message.reply("⏳ Slow down! Wait a few seconds before playing again.");
+    }
+
+    const bet = parseInt(args[0]) || 50;
+    if (bet <= 0) return message.reply("🃏 Bet must be a positive number.");
+    if (bet > 200000) return message.reply("🃏 Max blackjack bet is 200,000 coins.");
+
+    const coins = await getCoins(userId);
+    if (coins < bet) return message.reply("💸 You don't have enough coins for that bet.");
+
+    await removeCoins(userId, bet);
+
+    const playerHand = [drawCard(), drawCard()];
+    const dealerHand = [drawCard(), drawCard()];
+
+    const game = {
+        bet,
+        playerHand,
+        dealerHand,
+        finished: false
+    };
+
+    blackjackGames.set(userId, game);
+
+    let text = `🃏 **Blackjack** — Bet: ${bet} coins\n\n`;
+    text += `🧍 Your hand: ${formatHand(playerHand)} (Total: ${handValue(playerHand)})\n`;
+    text += `🏦 Dealer shows: ${formatHand([dealerHand[0]])}\n\n`;
+    text += `Type **>hit** to draw a card or **>stand** to hold.`;
+
+    await message.reply(text);
+};
+
+commands.hit = async (message) => {
+    const userId = message.author.id;
+    const game = blackjackGames.get(userId);
+
+    if (!game || game.finished) {
+        return message.reply("🃏 You have no active blackjack game. Use >blackjack <bet> to start.");
+    }
+
+    game.playerHand.push(drawCard());
+
+    const playerTotal = handValue(game.playerHand);
+
+    let text = `🃏 **Blackjack — HIT**\n\n`;
+    text += `🧍 Your hand: ${formatHand(game.playerHand)} (Total: ${playerTotal})\n`;
+    text += `🏦 Dealer shows: ${formatHand([game.dealerHand[0]])}\n\n`;
+
+    if (playerTotal > 21) {
+        game.finished = true;
+        text += `💀 You **BUST**! You lose your bet of ${game.bet} coins.\n`;
+        blackjackGames.delete(userId);
+    } else {
+        text += `Type **>hit** to draw again or **>stand** to hold.`;
+    }
+
+    await message.reply(text);
+};
+
+commands.stand = async (message) => {
+    const userId = message.author.id;
+    const game = blackjackGames.get(userId);
+
+    if (!game || game.finished) {
+        return message.reply("🃏 You have no active blackjack game. Use >blackjack <bet> to start.");
+    }
+
+    let dealerTotal = handValue(game.dealerHand);
+    while (dealerTotal < 17) {
+        game.dealerHand.push(drawCard());
+        dealerTotal = handValue(game.dealerHand);
+    }
+
+    const playerTotal = handValue(game.playerHand);
+
+    let text = `🃏 **Blackjack — STAND**\n\n`;
+    text += `🧍 Your hand: ${formatHand(game.playerHand)} (Total: ${playerTotal})\n`;
+    text += `🏦 Dealer hand: ${formatHand(game.dealerHand)} (Total: ${dealerTotal})\n\n`;
+
+    if (dealerTotal > 21 || playerTotal > dealerTotal) {
+        const win = game.bet * 2;
+        await addCoins(userId, win);
+        text += `✅ You **WIN**! You receive **${win} coins**.\n`;
+    } else if (dealerTotal === playerTotal) {
+        await addCoins(userId, game.bet);
+        text += `➖ **PUSH**. Your bet of ${game.bet} coins is returned.\n`;
+    } else {
+        text += `❌ You **LOSE**. Better luck next time.\n`;
+    }
+
+    game.finished = true;
+    blackjackGames.delete(userId);
+
+    await message.reply(text);
 };
 
 // ===============================
@@ -1188,6 +1561,101 @@ commands.fightboss = async (message) => {
         ]
     });
 };
+// ===============================
+// PLAYER DUEL SYSTEM (Pokétwo Style)
+// ===============================
+
+commands.fight = async (message, args) => {
+    const target = message.mentions.users.first();
+
+    if (!target) {
+        return message.reply({
+            embeds: [chaosEmbed("⚔️ Duel", "Tag a player to duel.\nUsage: `>fight @player`")]
+        });
+    }
+
+    if (target.id === message.author.id) {
+        return message.reply({
+            embeds: [chaosEmbed("❌ Invalid Duel", "You cannot duel yourself.")]
+        });
+    }
+
+    const yourTeam = userPokemon[message.author.id];
+    const theirTeam = userPokemon[target.id];
+
+    if (!yourTeam || yourTeam.length === 0) {
+        return message.reply({
+            embeds: [chaosEmbed("❌ No Pokémon", "You need at least one Pokémon to duel.")]
+        });
+    }
+
+    if (!theirTeam || theirTeam.length === 0) {
+        return message.reply({
+            embeds: [chaosEmbed("❌ Opponent Has No Pokémon", `${target.username} has no Pokémon to duel with.`)]
+        });
+    }
+
+    const yourMon = yourTeam[0].toLowerCase();
+    const theirMon = theirTeam[0].toLowerCase();
+
+    const yourStats = await getStats(yourMon);
+    const theirStats = await getStats(theirMon);
+
+    if (!yourStats || !theirStats) {
+        return message.reply({
+            embeds: [chaosEmbed("⚠️ Error", "Could not load Pokémon stats.")]
+        });
+    }
+
+    // ⚔️ Duel Start Banner
+    const startEmbed = new EmbedBuilder()
+        .setColor(0x0f859d)
+        .setTitle("⚔️ DUEL     START")
+        .setImage("https://copilot.microsoft.com/th/id/BCO.801afeaa-0d13-40ac-8df0-6639561f1e6c.png");
+
+    await message.reply({ embeds: [startEmbed] });
+
+    // Power calculation (Pokétwo style randomness)
+    const yourPower = yourStats.atk + Math.floor(Math.random() * 20);
+    const theirPower = theirStats.atk + Math.floor(Math.random() * 20);
+
+    let resultText = "";
+    let winner = null;
+
+    if (yourPower >= theirPower) {
+        winner = message.author;
+        resultText =
+            `🎉 **${message.author.username} wins the duel!**\n` +
+            `Their **${yourMon}** defeated **${theirMon}** used by **${target.username}**.`;
+    } else {
+        winner = target;
+        resultText =
+            `💀 **${target.username} wins the duel!**\n` +
+            `Their **${theirMon}** overpowered **${yourMon}** used by **${message.author.username}**.`;
+    }
+
+    // 🏆 Victory banner
+    if (winner.id === message.author.id) {
+        const victoryEmbed = new EmbedBuilder()
+            .setColor(0x0f859d)
+            .setTitle("🏆 VICTORY!")
+            .setImage("https://copilot.microsoft.com/th/id/BCO.484f1cc6-ab7c-4161-81e9-89921d2b6a50.png");
+
+        await message.channel.send({ embeds: [victoryEmbed] });
+    } else {
+        // 💀 Defeat banner
+        const defeatEmbed = new EmbedBuilder()
+            .setColor(0x0f859d)
+            .setTitle("💀 DEFEAT...")
+            .setImage("https://cdn.discordapp.com/attachments/1506335068312965150/1513175785513553992/ChatGPT_Image_Jun_7_2026_09_40_11_AM.png?ex=6a26c644&is=6a2574c4&hm=b18df6d27e63c62e05c0ca4e3c6e367e47da5bdf3e84855e3b63f4c25790fc72");
+
+        await message.channel.send({ embeds: [defeatEmbed] });
+    }
+
+    return message.channel.send({
+        embeds: [chaosEmbed("⚔️ Duel Result", resultText)]
+    });
+};
 
 // ===============================
 // MEGA EVOLUTION & GIGANTAMAX
@@ -1293,220 +1761,160 @@ commands.gigantamax = async (message, args) => {
 };
 
 // ===============================
-// SHOP SYSTEM (PAGINATED + BUTTONS)
+// SHOP (5-page embed layout)
 // ===============================
 
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
-
-// Shop inventory (expandable)
-const shopItems = [
-    { name: "Pokéball", price: 50, desc: "Basic ball for catching Pokémon." },
-    { name: "Great Ball", price: 100, desc: "Better catch rate than a Pokéball." },
-    { name: "Ultra Ball", price: 200, desc: "High catch rate for tough Pokémon." },
-    { name: "Mega Stone", price: 500, desc: "Required for Mega Evolution." },
-    { name: "G-Max Candy", price: 500, desc: "Required for Gigantamax forms." },
-    { name: "Rare Candy", price: 300, desc: "Instant level-up candy." },
-    { name: "Potion", price: 50, desc: "Heals 20 HP." },
-    { name: "Super Potion", price: 100, desc: "Heals 50 HP." },
-    { name: "Hyper Potion", price: 200, desc: "Heals 120 HP." }
+const shopPages = [
+    {
+        title: "Pokéballs",
+        description:
+            "🔸 **Pokéball** — 50 coins\n" +
+            "🔹 **Great Ball** — 150 coins\n" +
+            "🔶 **Ultra Ball** — 300 coins\n" +
+            "💎 **Master Ball** — 1000 coins"
+    },
+    {
+        title: "Battle Items",
+        description:
+            "🛡️ **Potion** — 100 coins (heal 30 HP)\n" +
+            "💊 **Super Potion** — 200 coins (heal 60 HP)\n" +
+            "💉 **Hyper Potion** — 400 coins (heal 120 HP)\n" +
+            "☀️ **Revive** — 500 coins (revive fainted Pokémon)\n" +
+            "✨ **Max Revive** — 800 coins (full revive)"
+    },
+    {
+        title: "Mega Stones",
+        description:
+            "⚜️ **Charizardite X** — 1000 coins\n" +
+            "⚜️ **Charizardite Y** — 1000 coins\n" +
+            "⚜️ **Mewtwonite X** — 1200 coins\n" +
+            "⚜️ **Mewtwonite Y** — 1200 coins\n" +
+            "⚜️ **Gengarite** — 900 coins\n" +
+            "⚜️ **Lucarionite** — 900 coins\n" +
+            "⚜️ **Blastoiseinite** — 1000 coins\n" +
+            "⚜️ **Venusaurite** — 1000 coins\n" +
+            "⚜️ **Blazikenite** — 1200 coins\n" +
+            "⚜️ **Sceptilite** — 1000 coins\n" +
+            "⚜️ **Swampertite** — 1000 coins\n" +
+            "⚜️ **Gardevoirite** — 900 coins\n" +
+            "⚜️ **Tyranitarite** — 1200 coins\n" +
+            "⚜️ **Salamencite** — 1200 coins"
+    },
+    {
+        title: "Gigantamax Items",
+        description:
+            "✨ **Dynamax Band** — 1500 coins\n" +
+            "✨ **G-Max Candy** — 700 coins\n" +
+            "🍲 **Max Soup** — 900 coins"
+    },
+    {
+        title: "TMs",
+        description:
+            "📀 **TM01** — 300 coins\n" +
+            "📀 **TM02** — 300 coins\n" +
+            "📀 **TM03** — 300 coins\n" +
+            "📀 **TM Random** — 500 coins"
+    }
 ];
 
-// Pagination helper
-function getShopPage(page) {
-    const itemsPerPage = 3;
-    const start = page * itemsPerPage;
-    const end = start + itemsPerPage;
-    return shopItems.slice(start, end);
-}
+// ===============================
+// PAGINATED SHOP COMMAND
+// ===============================
 
-// SHOP COMMAND (with pagination)
 commands.shop = async (message, args) => {
-    let page = 0;
-    const totalPages = Math.ceil(shopItems.length / 3);
+    let page = 1;
 
-    const renderPage = () => {
-        const items = getShopPage(page);
-
-        const desc = items
-            .map((item, i) => 
-                `**${item.name}** — ${item.price} coins\n*${item.desc}*\nUse: \`>buy ${item.name.toLowerCase()}\`\n`
-            )
-            .join("\n");
-
-        const embed = chaosEmbed(
-            "🛒 PokeChaos Shop",
-            desc + `\nPage **${page + 1}** of **${totalPages}**`
-        );
-
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId("shop_prev")
-                .setLabel("⬅ Previous")
-                .setStyle(ButtonStyle.Primary)
-                .setDisabled(page === 0),
-
-            new ButtonBuilder()
-                .setCustomId("shop_next")
-                .setLabel("Next ➡")
-                .setStyle(ButtonStyle.Primary)
-                .setDisabled(page === totalPages - 1)
-        );
-
-        return { embed, row };
-    };
-
-    const { embed, row } = renderPage();
-
-    const shopMsg = await message.reply({
-        embeds: [embed],
-        components: [row]
-    });
-
-    // Button collector
-    const collector = shopMsg.createMessageComponentCollector({
-        time: 120000
-    });
-
-    collector.on("collect", async (interaction) => {
-        if (interaction.user.id !== message.author.id) {
-            return interaction.reply({
-                content: "❌ This shop menu isn't yours.",
-                ephemeral: true
-            });
-        }
-
-        if (interaction.customId === "shop_prev") page--;
-        if (interaction.customId === "shop_next") page++;
-
-        const { embed, row } = renderPage();
-
-        await interaction.update({
-            embeds: [embed],
-            components: [row]
-        });
-    });
-
-    collector.on("end", () => {
-        shopMsg.edit({ components: [] }).catch(() => {});
-    });
-};
-
-// BUY COMMAND
-commands.buy = async (message, args) => {
-    const itemName = args.join(" ").toLowerCase();
-    if (!itemName) {
-        return message.reply({
-            embeds: [chaosEmbed("🛒 Buy Item", "Usage: `>buy <item>`")]
-        });
+    if (args[0] && !isNaN(args[0])) {
+        page = parseInt(args[0]);
     }
 
-    const item = shopItems.find(i => i.name.toLowerCase() === itemName);
-    if (!item) {
-        return message.reply({
-            embeds: [chaosEmbed("❌ Not Found", `Item **${itemName}** does not exist.`)]
-        });
+    if (args[0]?.toLowerCase() === "next") {
+        page = (message.lastShopPage || 1) + 1;
     }
 
-    const balance = getCoins(message.author.id);
-    if (balance < item.price) {
-        return message.reply({
-            embeds: [
-                chaosEmbed(
-                    "❌ Not Enough Coins",
-                    `You need **${item.price}** coins but only have **${balance}**.`
-                )
-            ]
-        });
+    if (args[0]?.toLowerCase() === "prev") {
+        page = (message.lastShopPage || 1) - 1;
     }
 
-    removeCoins(message.author.id, item.price);
+    if (page < 1) page = 1;
+    if (page > shopPages.length) page = shopPages.length;
 
-    return message.reply({
-        embeds: [
-            chaosEmbed(
-                "🛒 Purchase Complete",
-                `You bought **${item.name}** for **${item.price}** coins!`
-            )
-        ]
-    });
-};
+    message.lastShopPage = page;
 
-// USE COMMAND (placeholder for future items)
-commands.use = async (message, args) => {
-    const itemName = args.join(" ").toLowerCase();
-    if (!itemName) {
-        return message.reply({
-            embeds: [chaosEmbed("🎒 Use Item", "Usage: `>use <item>`")]
-        });
-    }
-
-    return message.reply({
-        embeds: [
-            chaosEmbed(
-                "🎒 Item Use",
-                `Using **${itemName}** currently has no effect.\n(Feature coming soon!)`
-            )
-        ]
-    });
-};
-
-// ===============================
-// END OF SHOP SYSTEM
-// ===============================
-
-// ===============================
-// POKÉDEX + INFO SYSTEM
-// ===============================
-
-commands.pokedex = async (message, args) => {
-    const name = (args[0] || "").toLowerCase();
-    if (!name) {
-        return message.reply({
-            embeds: [chaosEmbed("📘 Pokédex", "You must enter a Pokémon name.")]
-        });
-    }
-
-    const data = await getStats(name);
-    if (!data) {
-        return message.reply({
-            embeds: [chaosEmbed("❌ Not Found", `No data found for **${name}**.`)]
-        });
-    }
-
-    const dexEmbed = new EmbedBuilder()
-        .setColor(0x0f859d)
-        .setTitle(`📘 Pokédex — ${name.toUpperCase()}`)
-        .setDescription(
-            `**HP:** ${data.hp}\n` +
-            `**ATK:** ${data.atk}\n` +
-            `**DEF:** ${data.def}\n` +
-            `**SPD:** ${data.spd}`
-        )
-        .setFooter({ text: "PokeChaos • Pokédex Entry" });
-
-    return message.reply({ embeds: [dexEmbed] });
-};
-
-// ===============================
-// POKÉMON LIST SYSTEM
-// ===============================
-
-commands.mypokemon = async (message) => {
-    const list = userPokemon[message.author.id];
-
-    if (!list || list.length === 0) {
-        return message.reply({
-            embeds: [chaosEmbed("📦 Empty Box", "You have no Pokémon yet.")]
-        });
-    }
+    const data = shopPages[page - 1];
 
     const embed = new EmbedBuilder()
-        .setColor(0x0f859d)
-        .setTitle("📦 Your Pokémon")
-        .setDescription(list.map((p, i) => `**${i + 1}.** ${p}`).join("\n"))
-        .setFooter({ text: "PokeChaos • Storage Box" });
+        .setTitle(`🛒 PokéShop — Page ${page}/${shopPages.length} (${data.title})`)
+        .setDescription(data.description)
+        .setColor(0xff99cc)
+        .setFooter({ text: "Use >shop next, >shop prev, or >shop <page>" });
 
-    return message.reply({ embeds: [embed] });
+    await message.reply({ embeds: [embed] });
+};
+
+// ===============================
+// BUY COMMAND (QuickDB v9 permanent saving)
+// ===============================
+
+commands.buy = async (message, args) => {
+    const player = await ensurePlayer(message.author.id);
+
+    const item = args[0]?.toLowerCase();
+    const amount = parseInt(args[1]) || 1;
+
+    if (!item) return message.reply("🛒 Specify an item to buy. Example: >buy pokeball 3");
+
+    const prices = {
+        pokeball: 50,
+        greatball: 150,
+        ultraball: 300,
+        masterball: 1000,
+
+        potion: 100,
+        superpotion: 200,
+        hyperpotion: 400,
+        revive: 500,
+        maxrevive: 800,
+
+        charizarditex: 1000,
+        charizarditey: 1000,
+        mewtwonitex: 1200,
+        mewtwonitey: 1200,
+        gengarite: 900,
+        lucarionite: 900,
+        blastoisinite: 1000,
+        venusaurite: 1000,
+        blazikenite: 1200,
+        sceptilite: 1000,
+        swampertite: 1000,
+        gardevoirite: 900,
+        tyranitarite: 1200,
+        salamencite: 1200,
+
+        dynamaxband: 1500,
+        gmaxcandy: 700,
+        maxsoup: 900,
+
+        tm01: 300,
+        tm02: 300,
+        tm03: 300,
+        tmrandom: 500
+    };
+
+    if (!prices[item]) return message.reply("🛒 That item does not exist. Use >shop.");
+
+    const cost = prices[item] * amount;
+    const coins = await getCoins(message.author.id);
+
+    if (coins < cost) return message.reply("💸 You don't have enough coins.");
+
+    await removeCoins(message.author.id, cost);
+
+    player.items[item] = (player.items[item] || 0) + amount;
+
+    await db.set(`player_${message.author.id}`, player);
+
+    await message.reply(`🛒 You bought ${amount} ${item}(s) for ${cost} coins.`);
 };
 
 // ===============================
@@ -1708,10 +2116,8 @@ commands.use = async (message, args) => {
     return message.reply({ embeds: [useEmbed] });
 };
 // ===============================
-// DAILY REWARD SYSTEM
+// DAILY REWARD SYSTEM (FIXED)
 // ===============================
-
-if (!dailyCooldown) dailyCooldown = {};
 
 commands.daily = async (message) => {
     const id = message.author.id;
@@ -1735,7 +2141,9 @@ commands.daily = async (message) => {
 
     // Reward
     const coins = Math.floor(Math.random() * 200) + 100;
-    userCoins[id] = (userCoins[id] || 0) + coins;
+
+    // ⭐ FIXED — USE REAL ECONOMY SYSTEM
+    await addCoins(id, coins);
 
     dailyCooldown[id] = now;
 
@@ -1752,12 +2160,12 @@ commands.daily = async (message) => {
 };
 
 // ===============================
-// COIN BALANCE SYSTEM
+// COIN BALANCE SYSTEM (FIXED)
 // ===============================
 
 commands.balance = async (message) => {
     const id = message.author.id;
-    const coins = userCoins[id] || 0;
+    const coins = await getCoins(id);
 
     const balEmbed = new EmbedBuilder()
         .setColor(0x0f859d)
@@ -2217,32 +2625,148 @@ commands.uptime = async (message) => {
 };
 
 // ===============================
-// HELP COMMAND
+// HELP COMMAND (Updated for Casino + Pokémon + Shop)
 // ===============================
 
-commands.help = async (message) => {
-    const embed = new EmbedBuilder()
-        .setColor(0x0f859d)
-        .setTitle("📜 Command List")
-        .setDescription(
-            "**Pokémon Commands**\n" +
-            ">spawn, >catch, >catchwild, >pokedex, >pokemon, >team, >release, >trade, >fight, >boss, >fightboss, >mega, >gigantamax\n\n" +
-            "**Economy Commands**\n" +
-            ">balance, >daily, >givecoins, >shop, >buy, >inventory, >use\n\n" +
-            "**Gambling Commands**\n" +
-            ">coinflip, >slots, >blackjack, >hit, >stand\n\n" +
-            "**Games**\n" +
-            ">uno, >hangman, >guess\n\n" +
-            "**Moderation**\n" +
-            ">kick, >ban, >unban, >mute, >unmute, >clear\n\n" +
-            "**Utility**\n" +
-            ">ping, >uptime\n\n" +
-            "**Owner**\n" +
-            ">ownerspawn"
-        )
-        .setImage("https://cdn.discordapp.com/attachments/1506335068312965150/1513173721529978900/f235b0cd-7480-4424-bf60-df4e329311de.png?ex=6a26c458&is=6a2572d8&hm=88c264bb0157b7fead3100604e8d49231336c3b82eba6a0e91051f56db3e4bd5")
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 
-    return message.reply({ embeds: [embed] });
+module.exports = {
+    name: "help",
+    description: "Shows the paginated help menu.",
+    run: async (client, message) => {
+
+        // CYAN COLOR
+        const CYAN = 0x0f859d;
+
+        // PAGE 1 — GAME COMMANDS
+        const page1 = new EmbedBuilder()
+            .setColor(CYAN)
+            .setTitle("🎮 Game Commands")
+            .setDescription(
+                "**>uno** — Start a UNO match\n" +
+                "**>unoplay** — Play a card\n" +
+                "**>unotake** — Draw a card\n" +
+                "**>hangman** — Start Hangman\n" +
+                "**>hangmanend** — End Hangman\n" +
+                "**>guess** — Number guessing game\n"
+            )
+            .setFooter({ text: "Page 1 • Game Commands" });
+
+        // PAGE 2 — GAMBLING COMMANDS
+        const page2 = new EmbedBuilder()
+            .setColor(CYAN)
+            .setTitle("🎰 Gambling & Casino")
+            .setDescription(
+                "**>coinflip** — Flip a coin\n" +
+                "**>slots** — Spin the slot machine\n" +
+                "**>blackjack** — Start blackjack\n" +
+                "**>hit** — Hit in blackjack\n" +
+                "**>stand** — Stand in blackjack\n" +
+                "**>daily** — Claim daily reward\n" +
+                "**>balance** — Check your coins\n" +
+                "**>give** — Give coins to another user\n" +
+                "**>leaderboard** — Top richest players\n"
+            )
+            .setFooter({ text: "Page 2 • Gambling Commands" });
+
+        // PAGE 3 — POKEMON COMMANDS
+        const page3 = new EmbedBuilder()
+            .setColor(CYAN)
+            .setTitle("🐉 Pokémon Commands")
+            .setDescription(
+                "**>pokemon** — View your Pokémon\n" +
+                "**>pokedex** — View Pokédex\n" +
+                "**>spawn** — Spawn a Pokémon\n" +
+                "**>catch** — Catch a Pokémon\n" +
+                "**>catchwild** — Catch wild Pokémon\n" +
+                "**>team** — View your team\n" +
+                "**>release** — Release a Pokémon\n" +
+                "**>trade** — Trade with someone\n" +
+                "**>fight** — Battle another player\n" +
+                "**>boss** — Spawn a boss\n" +
+                "**>fightboss** — Fight the boss\n" +
+                "**>gigantamax** — Gigantamax a Pokémon\n" +
+                "**>mega** — Mega evolve\n" +
+                "**>shop** — Pokémon shop\n" +
+                "**>buy** — Buy items\n" +
+                "**>use** — Use an item\n"
+            )
+            .setFooter({ text: "Page 3 • Pokémon Commands" });
+
+        // PAGE 4 — UTILITY COMMANDS
+        const page4 = new EmbedBuilder()
+            .setColor(CYAN)
+            .setTitle("🧭 Utility Commands")
+            .setDescription(
+                "**>ping** — Bot latency\n" +
+                "**>uptime** — Bot uptime\n" +
+                "**>afk** — Set AFK status\n" +
+                "**>reminder** — Set a reminder\n" +
+                "**>profile** — View your profile\n" +
+                "**>inventory** — View your items\n"
+            )
+            .setFooter({ text: "Page 4 • Utility Commands" });
+
+        // PAGE 5 — OWNER COMMANDS
+        const page5 = new EmbedBuilder()
+            .setColor(CYAN)
+            .setTitle("🔒 Owner‑Only Commands")
+            .setDescription(
+                "**>ownerspawn** — Spawn a Pokémon\n" +
+                "**>ownercoins** — Give coins\n" +
+                "**>ownerreset** — Reset a user\n" +
+                "**>ownerwipe** — Wipe all data\n"
+            )
+            .setFooter({ text: "Page 5 • Owner Commands" });
+
+        // ALL PAGES
+        const pages = [page1, page2, page3, page4, page5];
+        let currentPage = 0;
+
+        // BUTTONS
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+                .setCustomId("prev")
+                .setLabel("◀️")
+                .setStyle(ButtonStyle.Primary),
+
+            new ButtonBuilder()
+                .setCustomId("next")
+                .setLabel("▶️")
+                .setStyle(ButtonStyle.Primary)
+        );
+
+        // SEND FIRST PAGE
+        const msg = await message.reply({
+            embeds: [pages[currentPage]],
+            components: [row]
+        });
+
+        // COLLECTOR
+        const collector = msg.createMessageComponentCollector({
+            time: 60000
+        });
+
+        collector.on("collect", async (i) => {
+            if (i.user.id !== message.author.id)
+                return i.reply({ content: "This menu isn't for you.", ephemeral: true });
+
+            if (i.customId === "prev") {
+                currentPage = currentPage === 0 ? pages.length - 1 : currentPage - 1;
+            } else if (i.customId === "next") {
+                currentPage = currentPage === pages.length - 1 ? 0 : currentPage + 1;
+            }
+
+            await i.update({
+                embeds: [pages[currentPage]],
+                components: [row]
+            });
+        });
+
+        collector.on("end", () => {
+            msg.edit({ components: [] }).catch(() => {});
+        });
+    }
 };
 
 // ===============================
@@ -2305,9 +2829,8 @@ loadAllData();
 // EXPORT COMMANDS
 // ===============================
 
-module.exports = {
-    commands
-};
+module.exports = { commands };
+
 // ===============================
 // BOT ONLINE + LOGIN
 // ===============================
@@ -2315,6 +2838,5 @@ module.exports = {
 client.once("ready", () => {
     console.log(`Bot is online as ${client.user.tag}`);
 });
-
 // Make sure this is the LAST line in the entire file
 client.login(process.env.TOKEN);
