@@ -22,8 +22,8 @@ const fetch = require("node-fetch");
 const ms = require("ms");
 
 // ⭐ QUICKDB — FORCED JSON DRIVER (SQLite DISABLED)
-const { QuickDB } = require("quick.db");
-const db = new QuickDB();
+const Database = require("easy-json-database");
+const db = new Database("./chaosdata.json");
 
 // ===============================
 // USER DATA STRUCTURES
@@ -50,19 +50,18 @@ function chaosEmbed(title, description) {
 // UNIFIED ECONOMY SYSTEM (QuickDB v9)
 // ===============================
 
-async function getCoins(userId) {
-    const coins = await db.get(`coins_${userId}`);
-    return coins ?? 0;
+function getCoins(userId) {
+    return db.get(`coins_${userId}`) || 0;
 }
 
-async function addCoins(userId, amount) {
-    const current = await getCoins(userId);
-    await db.set(`coins_${userId}`, current + amount);
+function addCoins(userId, amount) {
+    const current = getCoins(userId);
+    db.set(`coins_${userId}`, current + amount);
 }
 
-async function removeCoins(userId, amount) {
-    const current = await getCoins(userId);
-    await db.set(`coins_${userId}`, Math.max(0, current - amount));
+function removeCoins(userId, amount) {
+    const current = getCoins(userId);
+    db.set(`coins_${userId}`, Math.max(0, current - amount));
 }
 
 // ===============================
