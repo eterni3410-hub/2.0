@@ -18,9 +18,8 @@ const {
 const fetch = require("node-fetch");
 const ms = require("ms");
 
-// ⭐ QuickDB v9 (CORRECT VERSION)
 const { QuickDB } = require("quick.db");
-const db = new QuickDB({ filePath: "./database.sqlite" });
+const db = new QuickDB();
 
 // ===============================
 // USER DATA STRUCTURES
