@@ -379,9 +379,6 @@ commands.clear = async (message, args) => {
 // OWNER SPAWN SYSTEM
 // ===============================
 
-const fs = require("fs");
-const path = require("path");
-
 // Simple data file for saving spawned Pokémon
 const DATA_PATH = path.join(__dirname, "pokedata.json");
 
