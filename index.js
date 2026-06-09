@@ -137,7 +137,7 @@ const spawnThreshold = 15;
 const channelSpawns = {};
 
 // ===============================
-// COMMAND HANDLER (ONE HANDLER FOR ALL COMMANDS)
+// COMMAND HANDLER (START)
 // ===============================
 
 client.on("messageCreate", async (msg) => {
@@ -270,7 +270,7 @@ client.on("messageCreate", async (msg) => {
         return;
     }
 
-    // ===============================
+       // ===============================
     // PREMIUM ANIMATED SLOTS
     // ===============================
     if (cmd === "slots") {
@@ -339,8 +339,6 @@ client.on("messageCreate", async (msg) => {
 
         })();
     }
-
-}); // END OF ONE HANDLER
 
 // ===============================
 // BOSS GENERATOR
@@ -2813,6 +2811,16 @@ commands.clear = async (message, args) => {
 
     return message.reply({ embeds: [embed] });
 };
+};  // <-- this closes your last command INSIDE the handler
+
+
+
+// ⭐⭐⭐ INSERTED FOR YOU — THIS IS THE CORRECT MESSAGE HANDLER END ⭐⭐⭐
+}); // END OF MESSAGE HANDLER
+
+
+
+
 // ===============================
 // UTILITY COMMANDS
 // ===============================
@@ -2844,6 +2852,7 @@ commands.uptime = async (message) => {
 
     return message.reply({ embeds: [embed] });
 };
+
 // ===============================
 // BOT READY MESSAGE
 // ===============================
@@ -2851,6 +2860,7 @@ commands.uptime = async (message) => {
 client.on("ready", () => {
     console.log(`Bot logged in as ${client.user.tag}`);
 });
+
 // ===============================
 // DATA SAVE + LOAD SYSTEM
 // ===============================
@@ -2913,6 +2923,7 @@ module.exports = { commands };
 client.once("ready", () => {
     console.log(`Bot is online as ${client.user.tag}`);
 });
+
 // ===============================
 // LOGIN
 // ===============================
