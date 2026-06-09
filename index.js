@@ -152,13 +152,66 @@ client.on("messageCreate", async (msg) => {
     }
 
     if (cmd === "help") {
-        const embed = new EmbedBuilder()
-            .setColor(0x0f859d)
-            .setTitle("PokeChaos Commands")
-            .setImage("https://cdn.discordapp.com/attachments/1506335068312965150/1513919125213282525/Copilot_20260606_140626.png?ex=6a297a8e&is=6a28290e&hm=6b3105a55edfa1b26ad0a1a96d9e7422aafb56c959bafe8fa3b3c156276ef7cc");
+    const embed = new EmbedBuilder()
+        .setColor(0x0f859d)
+        .setTitle("PokeChaos Command Guide")
+        .setDescription("Your full categorized command list is below.")
+        .setImage("https://cdn.discordapp.com/attachments/1489421223615140030/1513931398493507756/lv_0_20260609114224.jpg?ex=6a2985fc&is=6a28347c&hm=59b060b39c847f44068cd772ad7f498b43e7cd34151273d2c532f2edd373c5a8")
+        .addFields(
+            {
+                name: "🎮 Pokémon Commands",
+                value:
+                ">pokemon — Get a random Pokémon\n" +
+                ">pokedex <name/id> — View Pokédex info\n" +
+                ">spawn — Spawn a Pokémon for yourself\n" +
+                ">catch — Catch your spawned Pokémon\n" +
+                ">catchwild — Catch a channel‑spawned Pokémon\n" +
+                ">team — View your Pokémon team\n" +
+                ">release <slot> — Release a Pokémon\n" +
+                ">fight <slot> — Battle a wild Pokémon\n" +
+                ">boss — Spawn a boss (server)\n" +
+                ">fightboss <slot> — Fight the boss\n" +
+                ">ownerspawn <name/id> — Owner‑only spawn"
+            },
+            {
+                name: "🛒 Shop & Items",
+                value:
+                ">shop — View the shop pages\n" +
+                ">shop next / prev — Navigate pages\n" +
+                ">buy <item> <amount> — Buy items"
+            },
+            {
+                name: "💰 Economy",
+                value:
+                ">balance — Check your coins\n" +
+                ">daily — Claim daily reward\n" +
+                ">give <@user> <amount> — Give coins"
+            },
+            {
+                name: "🎰 Premium Casino",
+                value:
+                ">slots <bet> — Animated 3×3 slot machine\n" +
+                ">coinflip <bet> <heads/tails> — High‑stakes coinflip\n" +
+                ">blackjack <bet> — Start a blackjack game\n" +
+                ">hit — Draw a card in blackjack\n" +
+                ">stand — Hold your hand in blackjack"
+            },
+            {
+                name: "⚙️ Utility",
+                value:
+                ">ping — Check bot latency\n" +
+                ">help — Show this menu"
+            }
+        );
 
-        return msg.channel.send({ embeds: [embed] });
-    }
+    return msg.channel.send({
+        embeds: [embed],
+        files: [{
+            attachment: "./assets/help_banner.png",
+            name: "help_banner.png"
+        }]
+    });
+}
 
     if (cmd === "slots") {
         const amount = parseInt(args[0]);
