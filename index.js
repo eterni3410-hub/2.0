@@ -154,19 +154,13 @@ client.on("messageCreate", async (msg) => {
     if (cmd === "ping") {
         return msg.reply("Pong!");
     }
-   // ===============================
-// HELP COMMAND (Updated for Casino + Pokémon + Shop)
-// ===============================
 
-module.exports = {
-    name: "help",
-    description: "Shows the paginated help menu.",
-    run: async (client, message) => {
-
-        // CYAN COLOR
+    // ===============================
+    // HELP COMMAND (INSIDE INDEX.JS)
+    // ===============================
+    if (cmd === "help") {
         const CYAN = 0x0f859d;
 
-        // PAGE 1 — GAME COMMANDS
         const page1 = new EmbedBuilder()
             .setColor(CYAN)
             .setTitle("🎮 Game Commands")
@@ -177,10 +171,8 @@ module.exports = {
                 "**>hangman** — Start Hangman\n" +
                 "**>hangmanend** — End Hangman\n" +
                 "**>guess** — Number guessing game\n"
-            )
-            .setFooter({ text: "Page 1 • Game Commands" });
+            );
 
-        // PAGE 2 — GAMBLING COMMANDS
         const page2 = new EmbedBuilder()
             .setColor(CYAN)
             .setTitle("🎰 Gambling & Casino")
@@ -194,10 +186,8 @@ module.exports = {
                 "**>balance** — Check your coins\n" +
                 "**>give** — Give coins to another user\n" +
                 "**>leaderboard** — Top richest players\n"
-            )
-            .setFooter({ text: "Page 2 • Gambling Commands" });
+            );
 
-        // PAGE 3 — POKEMON COMMANDS
         const page3 = new EmbedBuilder()
             .setColor(CYAN)
             .setTitle("🐉 Pokémon Commands")
@@ -218,10 +208,8 @@ module.exports = {
                 "**>shop** — Pokémon shop\n" +
                 "**>buy** — Buy items\n" +
                 "**>use** — Use an item\n"
-            )
-            .setFooter({ text: "Page 3 • Pokémon Commands" });
+            );
 
-        // PAGE 4 — UTILITY COMMANDS
         const page4 = new EmbedBuilder()
             .setColor(CYAN)
             .setTitle("🧭 Utility Commands")
@@ -232,10 +220,8 @@ module.exports = {
                 "**>reminder** — Set a reminder\n" +
                 "**>profile** — View your profile\n" +
                 "**>inventory** — View your items\n"
-            )
-            .setFooter({ text: "Page 4 • Utility Commands" });
+            );
 
-        // PAGE 5 — OWNER COMMANDS
         const page5 = new EmbedBuilder()
             .setColor(CYAN)
             .setTitle("🔒 Owner‑Only Commands")
@@ -244,44 +230,30 @@ module.exports = {
                 "**>ownercoins** — Give coins\n" +
                 "**>ownerreset** — Reset a user\n" +
                 "**>ownerwipe** — Wipe all data\n"
-            )
-            .setFooter({ text: "Page 5 • Owner Commands" });
+            );
 
-        // ALL PAGES
         const pages = [page1, page2, page3, page4, page5];
         let currentPage = 0;
 
-        // BUTTONS
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId("prev")
-                .setLabel("◀️")
-                .setStyle(ButtonStyle.Primary),
-
-            new ButtonBuilder()
-                .setCustomId("next")
-                .setLabel("▶️")
-                .setStyle(ButtonStyle.Primary)
+            new ButtonBuilder().setCustomId("prev").setLabel("◀️").setStyle(1),
+            new ButtonBuilder().setCustomId("next").setLabel("▶️").setStyle(1)
         );
 
-        // SEND FIRST PAGE
-        const msg = await message.reply({
+        const sent = await msg.reply({
             embeds: [pages[currentPage]],
             components: [row]
         });
 
-        // COLLECTOR
-        const collector = msg.createMessageComponentCollector({
-            time: 60000
-        });
+        const collector = sent.createMessageComponentCollector({ time: 60000 });
 
         collector.on("collect", async (i) => {
-            if (i.user.id !== message.author.id)
+            if (i.user.id !== msg.author.id)
                 return i.reply({ content: "This menu isn't for you.", ephemeral: true });
 
             if (i.customId === "prev") {
                 currentPage = currentPage === 0 ? pages.length - 1 : currentPage - 1;
-            } else if (i.customId === "next") {
+            } else {
                 currentPage = currentPage === pages.length - 1 ? 0 : currentPage + 1;
             }
 
@@ -292,10 +264,13 @@ module.exports = {
         });
 
         collector.on("end", () => {
-            msg.edit({ components: [] }).catch(() => {});
+            sent.edit({ components: [] }).catch(() => {});
         });
+
+        return;
     }
-};
+
+}); // <-- HANDLER NOW CLOSES PROPERLY
 
 // ===============================
 // PREMIUM ANIMATED SLOTS
@@ -2243,7 +2218,6 @@ commands.trade = async (message, args) => {
 // ===============================
 // LEVEL SYSTEM (AUTO-LEVEL ON FIGHT)
 // ===============================
-
 function addXP(userId, amount) {
     if (!userXP[userId]) userXP[userId] = 0;
     userXP[userId] += amount;
