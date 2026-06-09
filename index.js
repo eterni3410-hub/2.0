@@ -152,7 +152,12 @@ client.on("messageCreate", async (msg) => {
     }
 
     if (cmd === "help") {
-        return msg.reply("**Commands:**\n>ping\n>help\n>slots <amount>");
+        const embed = new EmbedBuilder()
+            .setColor(0x0f859d)
+            .setTitle("PokeChaos Commands")
+            .setImage("https://cdn.discordapp.com/attachments/1506335068312965150/1513919125213282525/Copilot_20260606_140626.png?ex=6a297a8e&is=6a28290e&hm=6b3105a55edfa1b26ad0a1a96d9e7422aafb56c959bafe8fa3b3c156276ef7cc");
+
+        return msg.channel.send({ embeds: [embed] });
     }
 
     if (cmd === "slots") {
@@ -172,7 +177,6 @@ client.on("messageCreate", async (msg) => {
         }
     }
 });
-
 
 // ===============================
 // BOSS GENERATOR
