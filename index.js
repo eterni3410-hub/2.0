@@ -2638,12 +2638,13 @@ commands.giveaway = async (message, args) => {
         return message.channel.send({ embeds: [winEmbed] });
     });
 };
+   
 // ===============================
 // MODERATION SYSTEM
 // ===============================
 
 commands.kick = async (message, args) => {
-    if (!message.member.permissions.has("KickMembers")) {
+    if (!message.member.permissions.has(PermissionsBitField.Flags.KickMembers)) {
         return message.reply({
             embeds: [chaosEmbed("❌ No Permission", "You cannot kick members.")]
         });
@@ -2673,7 +2674,7 @@ commands.kick = async (message, args) => {
 };
 
 commands.ban = async (message, args) => {
-    if (!message.member.permissions.has("BanMembers")) {
+    if (!message.member.permissions.has(PermissionsBitField.Flags.BanMembers)) {
         return message.reply({
             embeds: [chaosEmbed("❌ No Permission", "You cannot ban members.")]
         });
@@ -2703,7 +2704,7 @@ commands.ban = async (message, args) => {
 };
 
 commands.unban = async (message, args) => {
-    if (!message.member.permissions.has("BanMembers")) {
+    if (!message.member.permissions.has(PermissionsBitField.Flags.BanMembers)) {
         return message.reply({
             embeds: [chaosEmbed("❌ No Permission", "You cannot unban members.")]
         });
@@ -2716,20 +2717,19 @@ commands.unban = async (message, args) => {
         });
     }
 
-    message.guild.members.unban(userId).catch(() => {});
+    await message.guild.members.unban(userId).catch(() => {});
 
     const unbanEmbed = new EmbedBuilder()
-    .setColor(0x0f859d)
-    .setTitle("🔓 Member Unbanned")
-       
+        .setColor(0x0f859d)
+        .setTitle("🔓 Member Unbanned")
         .setDescription(`User with ID **${userId}** has been unbanned.`)
         .setFooter({ text: "PokeChaos • Moderation" });
 
-    return message.reply({ embeds: [embed] });
+    return message.reply({ embeds: [unbanEmbed] });
 };
 
 commands.mute = async (message, args) => {
-    if (!message.member.permissions.has("ModerateMembers")) {
+    if (!message.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
         return message.reply({
             embeds: [chaosEmbed("❌ No Permission", "You cannot mute members.")]
         });
@@ -2747,10 +2747,9 @@ commands.mute = async (message, args) => {
 
     await target.timeout(duration * 60 * 1000, reason).catch(() => {});
 
-   const muteEmbed = new EmbedBuilder()
-    .setColor(0x0f859d)
-    .setTitle("🔇 Member Muted")
-      
+    const muteEmbed = new EmbedBuilder()
+        .setColor(0x0f859d)
+        .setTitle("🔇 Member Muted")
         .setDescription(
             `**User:** ${target.user.tag}\n` +
             `**Duration:** ${duration} minutes\n` +
@@ -2758,11 +2757,11 @@ commands.mute = async (message, args) => {
         )
         .setFooter({ text: "PokeChaos • Moderation" });
 
-    return message.reply({ embeds: [embed] });
+    return message.reply({ embeds: [muteEmbed] });
 };
 
 commands.unmute = async (message, args) => {
-    if (!message.member.permissions.has("ModerateMembers")) {
+    if (!message.member.permissions.has(PermissionsBitField.Flags.ModerateMembers)) {
         return message.reply({
             embeds: [chaosEmbed("❌ No Permission", "You cannot unmute members.")]
         });
@@ -2788,7 +2787,7 @@ commands.unmute = async (message, args) => {
 };
 
 commands.clear = async (message, args) => {
-    if (!message.member.permissions.has("ManageMessages")) {
+    if (!message.member.permissions.has(PermissionsBitField.Flags.ManageMessages)) {
         return message.reply({
             embeds: [chaosEmbed("❌ No Permission", "You cannot clear messages.")]
         });
@@ -2811,15 +2810,6 @@ commands.clear = async (message, args) => {
 
     return message.reply({ embeds: [embed] });
 };
-};  // <-- this closes your last command INSIDE the handler
-
-
-
-// ⭐⭐⭐ INSERTED FOR YOU — THIS IS THE CORRECT MESSAGE HANDLER END ⭐⭐⭐
-}); // END OF MESSAGE HANDLER
-
-
-
 
 // ===============================
 // UTILITY COMMANDS
