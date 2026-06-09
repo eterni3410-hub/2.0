@@ -137,7 +137,7 @@ const spawnThreshold = 15;
 const channelSpawns = {};
 
 // ===============================
-// COMMAND HANDLER
+// COMMAND HANDLER (ONE HANDLER FOR ALL COMMANDS)
 // ===============================
 
 client.on("messageCreate", async (msg) => {
@@ -156,7 +156,7 @@ client.on("messageCreate", async (msg) => {
     }
 
     // ===============================
-    // HELP COMMAND (INSIDE INDEX.JS)
+    // HELP COMMAND
     // ===============================
     if (cmd === "help") {
         const CYAN = 0x0f859d;
@@ -340,7 +340,7 @@ client.on("messageCreate", async (msg) => {
         })();
     }
 
-}); // END OF HANDLER
+}); // END OF ONE HANDLER
 
 // ===============================
 // BOSS GENERATOR
