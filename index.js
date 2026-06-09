@@ -1,4 +1,140 @@
+/* ===============================
+   PokeChaos — Full RPG Discord Bot
+   CLEANED + FIXED + IMPROVED
+   =============================== */
+
 // ===============================
+// IMPORTS
+// ===============================
+
+const {
+    Client,
+    GatewayIntentBits,
+    Partials,
+    PermissionsBitField,
+    EmbedBuilder
+} = require("discord.js");
+
+const fetch = require("node-fetch");
+const ms = require("ms");
+const fs = require("fs");
+const path = require("path");
+
+// ===============================
+// SIMPLE JSON DATABASE (chaosdata.json)
+// ===============================
+
+const DB_PATH = path.join(__dirname, "chaosdata.json");
+
+if (!fs.existsSync(DB_PATH)) {
+    fs.writeFileSync(DB_PATH, JSON.stringify({ coins: {} }, null, 2));
+}
+
+function readDB() {
+    try {
+        const raw = fs.readFileSync(DB_PATH, "utf8");
+        return JSON.parse(raw);
+    } catch {
+        return { coins: {} };
+    }
+}
+
+function writeDB(data) {
+    fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+}
+
+let dbData = readDB();
+
+// ===============================
+// USER DATA STRUCTURES
+// ===============================
+
+let userInventory = {};
+let userAFK = {};
+let userReminders = [];
+let activeGiveaways = {};
+let userPokemon = {};
+
+// ===============================
+// UNIVERSAL EMBED STYLE
+// ===============================
+
+function chaosEmbed(title, description) {
+    return new EmbedBuilder()
+        .setColor(0x0f859d)
+        .setTitle(title)
+        .setDescription(description);
+}
+
+// ===============================
+// UNIFIED ECONOMY SYSTEM
+// ===============================
+
+function getCoins(userId) {
+    return dbData.coins[userId] || 0;
+}
+
+function addCoins(userId, amount) {
+    const current = getCoins(userId);
+    dbData.coins[userId] = current + amount;
+    writeDB(dbData);
+}
+
+function removeCoins(userId, amount) {
+    const current = getCoins(userId);
+    dbData.coins[userId] = Math.max(0, current - amount);
+    writeDB(dbData);
+}
+
+// ===============================
+// KEYS (USE ENV VARIABLES)
+// ===============================
+
+const TOKEN = process.env.TOKEN;
+const OWNER_ID = process.env.OWNER_ID;
+
+// ===============================
+// DISCORD CLIENT
+// ===============================
+
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ],
+    partials: [Partials.Channel]
+});
+
+client.once("ready", () => {
+    console.log(`Bot is fully online as ${client.user.tag}`);
+});
+
+// ===============================
+// GLOBALS
+// ===============================
+
+const PREFIX = ">";
+const commands = {};
+
+const aiChatEnabled = {};
+
+const economy = {};
+const dailyCooldown = {};
+
+const unoGames = {};
+const hangmanGames = {};
+const hangmanWords = ["apple", "banana", "dragon", "pokemon", "discord", "chaos"];
+
+const casinoCooldown = new Map();
+const blackjackGames = new Map();
+const JACKPOT_KEY = "casino_jackpot";
+const bossSpawns = {};
+
+let messageCount = 0;
+const spawnThreshold = 15;
+
+const channelSpawns = {};// ===============================
 // COMMAND HANDLER
 // ===============================
 
@@ -2873,5 +3009,7 @@ module.exports = { commands };
 client.once("ready", () => {
     console.log(`Bot is online as ${client.user.tag}`);
 });
-// Make sure this is the LAST line in the entire file
-client.login(process.env.TOKEN);
+// ===============================
+// LOGIN
+// ===============================
+client.login(TOKEN);
