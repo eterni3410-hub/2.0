@@ -22,8 +22,8 @@ const fetch = require("node-fetch");
 const ms = require("ms");
 
 // ⭐ QUICKDB — FORCED JSON DRIVER (SQLite DISABLED)
-const Database = require("easy-json-database");
-const db = new Database("./chaosdata.json");
+const JSONdb = require("simple-json-db");
+const db = new JSONdb("./chaosdata.json");
 
 // ===============================
 // USER DATA STRUCTURES
