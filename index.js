@@ -7,23 +7,44 @@
 // IMPORTS
 // ===============================
 
-// ⭐ FORCE QUICKDB TO JSON MODE (NO SQLITE, NO better-sqlite3)
-process.env.QUICKDB_DRIVER = "json";
-
-const { 
-    Client, 
-    GatewayIntentBits, 
-    Partials, 
-    PermissionsBitField, 
-    EmbedBuilder 
+const {
+    Client,
+    GatewayIntentBits,
+    Partials,
+    PermissionsBitField,
+    EmbedBuilder
 } = require("discord.js");
 
 const fetch = require("node-fetch");
 const ms = require("ms");
+const fs = require("fs");
+const path = require("path");
 
-// ⭐ QUICKDB — FORCED JSON DRIVER (SQLite DISABLED)
-const JSONdb = require("simple-json-db");
-const db = new JSONdb("./chaosdata.json");
+// ===============================
+// SIMPLE JSON DATABASE (chaosdata.json)
+// ===============================
+
+const DB_PATH = path.join(__dirname, "chaosdata.json");
+
+// ensure file exists
+if (!fs.existsSync(DB_PATH)) {
+    fs.writeFileSync(DB_PATH, JSON.stringify({ coins: {} }, null, 2));
+}
+
+function readDB() {
+    try {
+        const raw = fs.readFileSync(DB_PATH, "utf8");
+        return JSON.parse(raw);
+    } catch {
+        return { coins: {} };
+    }
+}
+
+function writeDB(data) {
+    fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+}
+
+let dbData = readDB();
 
 // ===============================
 // USER DATA STRUCTURES
@@ -47,21 +68,23 @@ function chaosEmbed(title, description) {
 }
 
 // ===============================
-// UNIFIED ECONOMY SYSTEM (QuickDB v9)
+// UNIFIED ECONOMY SYSTEM
 // ===============================
 
 function getCoins(userId) {
-    return db.get(`coins_${userId}`) || 0;
+    return dbData.coins[userId] || 0;
 }
 
 function addCoins(userId, amount) {
     const current = getCoins(userId);
-    db.set(`coins_${userId}`, current + amount);
+    dbData.coins[userId] = current + amount;
+    writeDB(dbData);
 }
 
 function removeCoins(userId, amount) {
     const current = getCoins(userId);
-    db.set(`coins_${userId}`, Math.max(0, current - amount));
+    dbData.coins[userId] = Math.max(0, current - amount);
+    writeDB(dbData);
 }
 
 // ===============================
