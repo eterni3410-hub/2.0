@@ -1,141 +1,3 @@
-/* ===============================
-   PokeChaos — Full RPG Discord Bot
-   CLEANED + FIXED + IMPROVED
-   =============================== */
-
-// ===============================
-// IMPORTS
-// ===============================
-
-const {
-    Client,
-    GatewayIntentBits,
-    Partials,
-    PermissionsBitField,
-    EmbedBuilder
-} = require("discord.js");
-
-const fetch = require("node-fetch");
-const ms = require("ms");
-const fs = require("fs");
-const path = require("path");
-
-// ===============================
-// SIMPLE JSON DATABASE (chaosdata.json)
-// ===============================
-
-const DB_PATH = path.join(__dirname, "chaosdata.json");
-
-if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify({ coins: {} }, null, 2));
-}
-
-function readDB() {
-    try {
-        const raw = fs.readFileSync(DB_PATH, "utf8");
-        return JSON.parse(raw);
-    } catch {
-        return { coins: {} };
-    }
-}
-
-function writeDB(data) {
-    fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
-}
-
-let dbData = readDB();
-
-// ===============================
-// USER DATA STRUCTURES
-// ===============================
-
-let userInventory = {};
-let userAFK = {};
-let userReminders = [];
-let activeGiveaways = {};
-let userPokemon = {};
-
-// ===============================
-// UNIVERSAL EMBED STYLE
-// ===============================
-
-function chaosEmbed(title, description) {
-    return new EmbedBuilder()
-        .setColor(0x0f859d)
-        .setTitle(title)
-        .setDescription(description);
-}
-
-// ===============================
-// UNIFIED ECONOMY SYSTEM
-// ===============================
-
-function getCoins(userId) {
-    return dbData.coins[userId] || 0;
-}
-
-function addCoins(userId, amount) {
-    const current = getCoins(userId);
-    dbData.coins[userId] = current + amount;
-    writeDB(dbData);
-}
-
-function removeCoins(userId, amount) {
-    const current = getCoins(userId);
-    dbData.coins[userId] = Math.max(0, current - amount);
-    writeDB(dbData);
-}
-
-// ===============================
-// KEYS (USE ENV VARIABLES)
-// ===============================
-
-const TOKEN = process.env.TOKEN;
-const OWNER_ID = process.env.OWNER_ID;
-
-// ===============================
-// DISCORD CLIENT
-// ===============================
-
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-    ],
-    partials: [Partials.Channel]
-});
-
-client.once("ready", () => {
-    console.log(`Bot is fully online as ${client.user.tag}`);
-});
-
-// ===============================
-// GLOBALS
-// ===============================
-
-const PREFIX = ">";
-const commands = {};
-
-const aiChatEnabled = {};
-
-const economy = {};
-const dailyCooldown = {};
-
-const unoGames = {};
-const hangmanGames = {};
-const hangmanWords = ["apple", "banana", "dragon", "pokemon", "discord", "chaos"];
-
-const casinoCooldown = new Map();
-const blackjackGames = new Map();
-const JACKPOT_KEY = "casino_jackpot";
-const bossSpawns = {};
-
-let messageCount = 0;
-const spawnThreshold = 15;
-
-const channelSpawns = {};
-
 // ===============================
 // COMMAND HANDLER
 // ===============================
@@ -214,33 +76,86 @@ client.on("messageCreate", async (msg) => {
         return msg.channel.send({
             embeds: [embed],
             files: [{
-                attachment: "./assets/help_banner.png",
-                name: "help_banner.png"
+                attachment: "https://cdn.discordapp.com/attachments/1489421223615140030/1513931398493507756/lv_0_20260609114224.jpg",
+                name: "Help Commands"
             }]
         });
     }
 
-    // ===============================
-    // SLOTS
-    // ===============================
-    if (cmd === "slots") {
-        const amount = parseInt(args[0]);
-        if (!amount || amount <= 0) return msg.reply("Enter a valid amount.");
+// ===============================
+// PREMIUM ANIMATED SLOTS
+// ===============================
+if (cmd === "slots") {
+    const bet = parseInt(args[0]);
+    if (!bet || bet <= 0) return msg.reply("Enter a valid bet amount.");
 
-        const current = getCoins(msg.author.id);
-        if (current < amount) return msg.reply("Not enough coins.");
+    const bal = getCoins(msg.author.id);
+    if (bal < bet) return msg.reply("You don't have enough coins.");
 
-        const win = Math.random() < 0.4;
+    // Slot symbols
+    const symbols = ["💎", "⭐", "🍀", "🔥", "7️⃣", "💰"];
 
-        if (win) {
-            addCoins(msg.author.id, amount);
-            return msg.reply(`🎉 You won **${amount}** coins!`);
+    // Random spin
+    const spin = () => [
+        symbols[Math.floor(Math.random() * symbols.length)],
+        symbols[Math.floor(Math.random() * symbols.length)],
+        symbols[Math.floor(Math.random() * symbols.length)]
+    ];
+
+    // Animation frames
+    const frame1 = ["⬜", "⬜", "⬜"];
+    const frame2 = ["🔄", "⬜", "⬜"];
+    const frame3 = ["🔄", "🔄", "⬜"];
+    const frame4 = ["🔄", "🔄", "🔄"];
+
+    const final = spin();
+
+    // Send first frame
+    const msgSlot = await msg.channel.send(
+        `🎰 **SLOTS**\n[ ${frame1[0]} | ${frame1[1]} | ${frame1[2]} ]`
+    );
+
+    // Animate
+    setTimeout(() => {
+        msgSlot.edit(`🎰 **SLOTS**\n[ ${frame2[0]} | ${frame2[1]} | ${frame2[2]} ]`);
+    }, 500);
+
+    setTimeout(() => {
+        msgSlot.edit(`🎰 **SLOTS**\n[ ${frame3[0]} | ${frame3[1]} | ${frame3[2]} ]`);
+    }, 900);
+
+    setTimeout(() => {
+        msgSlot.edit(`🎰 **SLOTS**\n[ ${frame4[0]} | ${frame4[1]} | ${frame4[2]} ]`);
+    }, 1300);
+
+    // Final result
+    setTimeout(() => {
+        const [a, b, c] = final;
+
+        let resultText = "";
+        let winAmount = 0;
+
+        if (a === b && b === c) {
+            // Triple match
+            winAmount = bet * 5;
+            addCoins(msg.author.id, winAmount);
+            resultText = `🎉 **JACKPOT!** Triple ${a}!\nYou won **${winAmount}** coins!`;
+        } else if (a === b || b === c || a === c) {
+            // Double match
+            winAmount = bet * 2;
+            addCoins(msg.author.id, winAmount);
+            resultText = `✨ Nice! You matched two symbols!\nYou won **${winAmount}** coins!`;
         } else {
-            removeCoins(msg.author.id, amount);
-            return msg.reply(`💀 You lost **${amount}** coins.`);
+            // Loss
+            removeCoins(msg.author.id, bet);
+            resultText = `💀 You lost **${bet}** coins.`;
         }
-    }
-});
+
+        msgSlot.edit(
+            `🎰 **SLOTS**\n[ ${a} | ${b} | ${c} ]\n\n${resultText}`
+        );
+    }, 2000);
+}
 
 // ===============================
 // BOSS GENERATOR
