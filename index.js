@@ -2,18 +2,6 @@
    PokeChaos — Full RPG Discord Bot
    CLEANED + FIXED + IMPROVED
    =============================== */
-// ===============================
-// COMMAND HANDLER
-// ===============================
-
-const PREFIX = ">";
-
-client.on("messageCreate", async (msg) => {
-    if (msg.author.bot) return;
-    if (!msg.content.startsWith(PREFIX)) return;
-
-    const args = msg.content.slice(PREFIX.length).trim().split(/ +/);
-    const cmd = args.shift().toLowerCase();
 
 // ===============================
 // IMPORTS
@@ -38,7 +26,6 @@ const path = require("path");
 
 const DB_PATH = path.join(__dirname, "chaosdata.json");
 
-// ensure file exists
 if (!fs.existsSync(DB_PATH)) {
     fs.writeFileSync(DB_PATH, JSON.stringify({ coins: {} }, null, 2));
 }
@@ -66,7 +53,7 @@ let userInventory = {};
 let userAFK = {};
 let userReminders = [];
 let activeGiveaways = {};
-let userPokemon = {}; // fixed
+let userPokemon = {};
 
 // ===============================
 // UNIVERSAL EMBED STYLE
@@ -130,30 +117,62 @@ client.once("ready", () => {
 const PREFIX = ">";
 const commands = {};
 
-// AI chat toggle
 const aiChatEnabled = {};
 
-// Economy + cooldowns
 const economy = {};
 const dailyCooldown = {};
 
-// Mini‑games
 const unoGames = {};
 const hangmanGames = {};
 const hangmanWords = ["apple", "banana", "dragon", "pokemon", "discord", "chaos"];
 
-// Casino systems
 const casinoCooldown = new Map();
-const blackjackGames = new Map();   // <— FIXED (must be Map, not {})
+const blackjackGames = new Map();
 const JACKPOT_KEY = "casino_jackpot";
-const bossSpawns = {};              // <— FIXED (needed for >boss)
+const bossSpawns = {};
 
-// Pokémon auto‑spawn
 let messageCount = 0;
 const spawnThreshold = 15;
 
-// Channel wild spawns (Pokétwo style)
-const channelSpawns = {};           // <— REQUIRED for >catchwild
+const channelSpawns = {};
+
+// ===============================
+// COMMAND HANDLER
+// ===============================
+
+client.on("messageCreate", async (msg) => {
+    if (msg.author.bot) return;
+    if (!msg.content.startsWith(PREFIX)) return;
+
+    const args = msg.content.slice(PREFIX.length).trim().split(/ +/);
+    const cmd = args.shift().toLowerCase();
+
+    if (cmd === "ping") {
+        return msg.reply("Pong!");
+    }
+
+    if (cmd === "help") {
+        return msg.reply("**Commands:**\n>ping\n>help\n>slots <amount>");
+    }
+
+    if (cmd === "slots") {
+        const amount = parseInt(args[0]);
+        if (!amount) return msg.reply("Enter an amount.");
+        const current = getCoins(msg.author.id);
+        if (current < amount) return msg.reply("Not enough coins.");
+
+        const win = Math.random() < 0.4;
+
+        if (win) {
+            addCoins(msg.author.id, amount);
+            return msg.reply(`🎉 You won **${amount}** coins!`);
+        } else {
+            removeCoins(msg.author.id, amount);
+            return msg.reply(`💀 You lost **${amount}** coins.`);
+        }
+    }
+});
+
 
 // ===============================
 // BOSS GENERATOR
