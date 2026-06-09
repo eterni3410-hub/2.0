@@ -2,6 +2,18 @@
    PokeChaos — Full RPG Discord Bot
    CLEANED + FIXED + IMPROVED
    =============================== */
+// ===============================
+// COMMAND HANDLER
+// ===============================
+
+const PREFIX = ">";
+
+client.on("messageCreate", async (msg) => {
+    if (msg.author.bot) return;
+    if (!msg.content.startsWith(PREFIX)) return;
+
+    const args = msg.content.slice(PREFIX.length).trim().split(/ +/);
+    const cmd = args.shift().toLowerCase();
 
 // ===============================
 // IMPORTS
