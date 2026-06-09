@@ -154,6 +154,7 @@ client.on("messageCreate", async (msg) => {
     if (cmd === "ping") {
         return msg.reply("Pong!");
     }
+
     // ===============================
     // HELP
     // ===============================
@@ -162,7 +163,7 @@ client.on("messageCreate", async (msg) => {
             .setColor(0x0f859d)
             .setTitle("PokeChaos Command Guide")
             .setDescription("Your full categorized command list is below.")
-            .setImage("https://cdn.discordapp.com/attachments/1489421223615140030/1513931398493507756/lv_0_20260609114224.jpg?ex=6a2985fc&is=6a28347c&hm=59b060b39c847f44068cd772ad7f498b43e7cd34151273d2c532f2edd373c5a8")
+            .setImage("https://cdn.discordapp.com/attachments/1489421223615140030/1513931398493507756/lv_0_20260609114224.jpg")
             .addFields(
                 {
                     name: "🎮 Pokémon Commands",
@@ -213,8 +214,8 @@ client.on("messageCreate", async (msg) => {
         return msg.channel.send({
             embeds: [embed],
             files: [{
-                attachment: "https://cdn.discordapp.com/attachments/1489421223615140030/1513931398493507756/lv_0_20260609114224.jpg?ex=6a2985fc&is=6a28347c&hm=59b060b39c847f44068cd772ad7f498b43e7cd34151273d2c532f2edd373c5a8",
-                name: "Help Commands"
+                attachment: "./assets/help_banner.png",
+                name: "help_banner.png"
             }]
         });
     }
@@ -263,7 +264,6 @@ function generateBoss() {
 commands.boss = async (message) => {
     const channelId = message.channel.id;
 
-    // If no boss exists, spawn one
     if (!bossSpawns[channelId]) {
         const newBoss = generateBoss();
         bossSpawns[channelId] = {
