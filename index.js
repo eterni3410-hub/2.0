@@ -87,6 +87,127 @@ function removeCoins(userId, amount) {
 }
 
 // ===============================
+// CASINO HELPERS — CLASSIC SYMBOLS
+// ===============================
+
+// Ensure DB fields exist
+if (dbData.jackpot === undefined) dbData.jackpot = 0;
+if (!dbData.streaks) dbData.streaks = {};
+writeDB(dbData);
+
+// ⏳ 5‑second cooldown
+function canUseCasino(userId) {
+    const now = Date.now();
+    const last = casinoCooldown.get(userId) || 0;
+    if (now - last < 5000) return false;
+    casinoCooldown.set(userId, now);
+    return true;
+}
+
+// 🎰 CLASSIC SLOT SYMBOLS
+const slotSymbols = ["7️⃣", "⭐", "🍒", "🍋", "🔔", "💎"];
+
+function rollSymbol() {
+    return slotSymbols[Math.floor(Math.random() * slotSymbols.length)];
+}
+
+function formatReels(reels) {
+    return reels.map(r => `[ ${r.join(" | ")} ]`).join("\n");
+}
+
+// 🎰 SLOT WIN LOGIC
+function calculateSlotsWin(reels, bet) {
+    let multiplier = 0;
+    let jackpotHit = false;
+
+    for (const row of reels) {
+        if (row[0] === row[1] && row[1] === row[2]) {
+            const sym = row[0];
+
+            if (sym === "7️⃣") { multiplier += 10; jackpotHit = true; }
+            else if (sym === "💎") multiplier += 6;
+            else if (sym === "🔔") multiplier += 5;
+            else if (sym === "⭐") multiplier += 4;
+            else if (sym === "🍒") multiplier += 3;
+            else if (sym === "🍋") multiplier += 2;
+        }
+    }
+
+    const win = multiplier > 0 ? bet * multiplier : 0;
+    return { win, multiplier, jackpotHit };
+}
+
+// 💰 JACKPOT SYSTEM
+function getJackpot() {
+    return dbData.jackpot || 0;
+}
+
+function addToJackpot(amount) {
+    dbData.jackpot = (dbData.jackpot || 0) + amount;
+    writeDB(dbData);
+}
+
+function resetJackpot() {
+    dbData.jackpot = 0;
+    writeDB(dbData);
+}
+
+// 🔥 COINFLIP STREAK SYSTEM
+function getStreak(userId) {
+    return dbData.streaks[userId] || 0;
+}
+
+function setStreak(userId, value) {
+    dbData.streaks[userId] = value;
+    writeDB(dbData);
+}
+
+// 🃏 BLACKJACK ENGINE
+const deck = [
+    "A♠","2♠","3♠","4♠","5♠","6♠","7♠","8♠","9♠","10♠","J♠","Q♠","K♠",
+    "A♥","2♥","3♥","4♥","5♥","6♥","7♥","8♥","9♥","10♥","J♥","Q♥","K♥",
+    "A♦","2♦","3♦","4♦","5♦","6♦","7♦","8♦","9♦","10♦","J♦","Q♦","K♦",
+    "A♣","2♣","3♣","4♣","5♣","6♣","7♣","8♣","9♣","10♣","J♣","Q♣","K♣"
+];
+
+function drawCard() {
+    return deck[Math.floor(Math.random() * deck.length)];
+}
+
+function cardValue(card) {
+    const rank = card.replace(/[♠♥♦♣]/g, "");
+    if (["J","Q","K"].includes(rank)) return 10;
+    if (rank === "A") return 11;
+    return parseInt(rank);
+}
+
+function handValue(hand) {
+    let total = 0;
+    let aces = 0;
+
+    for (const card of hand) {
+        const rank = card.replace(/[♠♥♦♣]/g, "");
+        if (rank === "A") {
+            aces++;
+            total += 11;
+        } else {
+            total += cardValue(card);
+        }
+    }
+
+    while (total > 21 && aces > 0) {
+        total -= 10;
+        aces--;
+    }
+
+    return total;
+}
+
+function formatHand(hand) {
+    return hand.join(", ");
+}
+
+// ===============================
 // KEYS (USE ENV VARIABLES)
 // ===============================
 
