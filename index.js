@@ -1051,7 +1051,6 @@ async function removeCoins(userId, amount) {
     await db.set(`coins_${userId}`, newAmount);
 }
 
-
 // ===============================
 // POKÉCHAOS CASINO LOBBY (HYPER ANIMATED)
 // ===============================
@@ -1105,10 +1104,9 @@ commands.casino = async (message) => {
             .setStyle(4)
     );
 
-    // IMPORTANT FIX — attach collector to the FINAL message, not the loading message
+    // attach collector to the FINAL message
     const sent = await loading.edit({ content: "", embeds: [embed], components: [row] });
 
-    // Collector FIXED
     const collector = sent.createMessageComponentCollector({ time: 60000 });
 
     collector.on("collect", async (i) => {
@@ -1151,11 +1149,11 @@ commands.slots = async (message, args) => {
     if (bet <= 0) return message.reply("🎰 Bet must be a positive number.");
     if (bet > 100000) return message.reply("🎰 Max bet is 100,000 coins.");
 
-    const coins = await getCoins(userId);
+    const coins = getCoins(userId);
     if (coins < bet) return message.reply("💸 You don't have enough coins for that bet.");
 
-    await removeCoins(userId, bet);
-    await addToJackpot(Math.floor(bet * 0.1));
+    removeCoins(userId, bet);
+    addToJackpot(Math.floor(bet * 0.1));
 
     // Animated intro
     const msgSpin = await message.reply("🎰 **Initializing Hyper Slots...**");
@@ -1186,21 +1184,21 @@ commands.slots = async (message, args) => {
     ];
 
     const { win, multiplier, jackpotHit } = calculateSlotsWin(reels, bet);
-    const jackpot = await getJackpot();
+    const jackpot = getJackpot();
 
     let result = `🎰 **Hyper Slots** — Bet: ${bet} coins\n\n`;
     result += formatReels(reels) + "\n\n";
 
     if (win > 0) {
-        await addCoins(userId, win);
+        addCoins(userId, win);
         result += `✨ **WIN!** You earned **${win} coins** (x${multiplier})!\n`;
     } else {
         result += "💀 **No win this time...**\n";
     }
 
     if (jackpotHit) {
-        await addCoins(userId, jackpot);
-        await resetJackpot();
+        addCoins(userId, jackpot);
+        resetJackpot();
         result += `👑 **JACKPOT HIT!** You won **${jackpot} coins!**\n🔥 The casino shakes with energy!`;
     } else {
         result += `💰 Jackpot: **${jackpot} coins**\n`;
@@ -1208,6 +1206,7 @@ commands.slots = async (message, args) => {
 
     await msgSpin.edit(result);
 };
+
 // ===============================
 // HYPER ANIMATED COINFLIP
 // ===============================
@@ -1222,7 +1221,7 @@ commands.coinflip = async (message, args) => {
     let betArg = args[0]?.toLowerCase();
     const choice = (args[1]?.toLowerCase() === "tails") ? "tails" : "heads";
 
-    const coins = await getCoins(userId);
+    const coins = getCoins(userId);
     let bet = 0;
 
     if (betArg === "all" || betArg === "all-in") bet = coins;
@@ -1232,9 +1231,9 @@ commands.coinflip = async (message, args) => {
     if (bet > coins) return message.reply("💸 Not enough coins.");
     if (bet > 200000) return message.reply("🪙 Max bet is 200,000.");
 
-    await removeCoins(userId, bet);
+    removeCoins(userId, bet);
 
-    const streak = await getStreak(userId);
+    const streak = getStreak(userId);
     const bonus = 1 + Math.min(streak * 0.1, 1.0);
 
     const msgFlip = await message.reply("🪙 **Spinning the coin...**");
@@ -1252,16 +1251,17 @@ commands.coinflip = async (message, args) => {
 
     if (flip === choice) {
         const win = Math.floor(bet * 2 * bonus);
-        await addCoins(userId, win);
-        await setStreak(userId, streak + 1);
+        addCoins(userId, win);
+        setStreak(userId, streak + 1);
         result += `✅ **WIN!** You earned **${win} coins**!\n🔥 Streak: **${streak + 1}**`;
     } else {
-        await setStreak(userId, 0);
+        setStreak(userId, 0);
         result += `❌ **LOSE!** Better luck next time.\n💤 Streak reset.`;
     }
 
     await msgFlip.edit(result);
 };
+
 // ===============================
 // HYPER ANIMATED BLACKJACK
 // ===============================
@@ -1277,10 +1277,10 @@ commands.blackjack = async (message, args) => {
     if (bet <= 0) return message.reply("🃏 Bet must be positive.");
     if (bet > 200000) return message.reply("🃏 Max bet is 200,000.");
 
-    const coins = await getCoins(userId);
+    const coins = getCoins(userId);
     if (coins < bet) return message.reply("💸 Not enough coins.");
 
-    await removeCoins(userId, bet);
+    removeCoins(userId, bet);
 
     const playerHand = [drawCard(), drawCard()];
     const dealerHand = [drawCard(), drawCard()];
@@ -1352,10 +1352,10 @@ commands.stand = async (message) => {
 
     if (dealerTotal > 21 || playerTotal > dealerTotal) {
         const win = game.bet * 2;
-        await addCoins(userId, win);
+        addCoins(userId, win);
         text += `✅ **WIN!** You earned **${win} coins**!`;
     } else if (dealerTotal === playerTotal) {
-        await addCoins(userId, game.bet);
+        addCoins(userId, game.bet);
         text += `➖ **PUSH** — Bet returned.`;
     } else {
         text += `❌ **LOSE!** Better luck next time.`;
