@@ -1084,10 +1084,10 @@ commands.casino = async (message) => {
             "Good luck, trainer! 🍀"
         )
         .setThumbnail("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/master-ball.png")
-        .setImage("https://i.imgur.com/0Z6xQfS.gif") // neon casino gif
+        .setImage("https://i.pinimg.com/originals/16/a8/d5/16a8d5f089845878ac25e7f7c2c7e022.png") // YOUR IMAGE
         .setFooter({ text: "PokéChaos Casino — Bet responsibly." });
 
-    // Buttons (Pokémon themed)
+    // Buttons
     const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId("casino_slots")
@@ -1105,10 +1105,11 @@ commands.casino = async (message) => {
             .setStyle(4)
     );
 
-    await loading.edit({ content: "", embeds: [embed], components: [row] });
+    // IMPORTANT FIX — attach collector to the FINAL message, not the loading message
+    const sent = await loading.edit({ content: "", embeds: [embed], components: [row] });
 
-    // Collector
-    const collector = loading.createMessageComponentCollector({ time: 60000 });
+    // Collector FIXED
+    const collector = sent.createMessageComponentCollector({ time: 60000 });
 
     collector.on("collect", async (i) => {
         if (i.user.id !== message.author.id)
@@ -1116,24 +1117,25 @@ commands.casino = async (message) => {
 
         if (i.customId === "casino_slots") {
             await i.reply("🎰 **Opening Slots...**");
-            return commands.slots(message, []); // call your premium slots
+            return commands.slots(message, []); 
         }
 
         if (i.customId === "casino_coinflip") {
             await i.reply("🪙 **Opening Coinflip...**");
-            return commands.coinflip(message, []); // call coinflip
+            return commands.coinflip(message, []); 
         }
 
         if (i.customId === "casino_blackjack") {
             await i.reply("🃏 **Opening Blackjack...**");
-            return commands.blackjack(message, ["50"]); // default bet
+            return commands.blackjack(message, ["50"]); 
         }
     });
 
     collector.on("end", () => {
-        loading.edit({ components: [] }).catch(() => {});
+        sent.edit({ components: [] }).catch(() => {});
     });
 };
+
 // ===============================
 // HYPER ANIMATED SLOTS (3×3, flashing, jackpot explosions)
 // ===============================
