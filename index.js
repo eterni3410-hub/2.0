@@ -266,12 +266,13 @@ if (cmd === "help") {
         });
     });
 
-    collector.on("end", () => {
+        collector.on("end", () => {
         sent.edit({ components: [] }).catch(() => {});
     });
 
     return;
-}
+}); // END OF HANDLER
+
 // ===============================
 // COMMAND HANDLER (END)
 // ===============================
