@@ -158,7 +158,7 @@ client.on("messageCreate", async (msg) => {
         }
     }
 
-    // ===============================
+// ===============================
 // HELP COMMAND (INSIDE HANDLER)
 // ===============================
 if (cmd === "help") {
@@ -266,17 +266,17 @@ if (cmd === "help") {
         });
     });
 
-        collector.on("end", () => {
+    collector.on("end", () => {
         sent.edit({ components: [] }).catch(() => {});
     });
 
     return;
-}); // END OF HANDLER
+} // <-- closes the help command IF block
 
+}); // <-- THIS closes the handler properly
 // ===============================
 // COMMAND HANDLER (END)
 // ===============================
-
 
 // ===============================
 // BOSS GENERATOR
