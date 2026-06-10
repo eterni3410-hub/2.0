@@ -19,9 +19,6 @@ const fetch = require("node-fetch");
 const ms = require("ms");
 const fs = require("fs");
 const path = require("path");
-const casinoCooldown = new Map();
-const blackjackGames = new Map();
-const JACKPOT_KEY = "casino_jackpot";
 
 // ===============================
 // SIMPLE JSON DATABASE (chaosdata.json)
