@@ -19,6 +19,9 @@ const fetch = require("node-fetch");
 const ms = require("ms");
 const fs = require("fs");
 const path = require("path");
+const casinoCooldown = new Map();
+const blackjackGames = new Map();
+const JACKPOT_KEY = "casino_jackpot";
 
 // ===============================
 // SIMPLE JSON DATABASE (chaosdata.json)
@@ -136,7 +139,7 @@ const spawnThreshold = 15;
 
 const channelSpawns = {};
 
-// ===============================
+/// ===============================
 // COMMAND HANDLER (START)
 // ===============================
 
@@ -159,195 +162,123 @@ client.on("messageCreate", async (msg) => {
     }
 
     // ===============================
-    // HELP COMMAND  (INSIDE HANDLER)
-    // ===============================
-    if (cmd === "help") {
-        const CYAN = 0x0f859d;
+// HELP COMMAND (INSIDE HANDLER)
+// ===============================
+if (cmd === "help") {
+    const CYAN = 0x0f859d;
 
-        const page1 = new EmbedBuilder()
-            .setColor(CYAN)
-            .setTitle("🎮 Game Commands")
-            .setDescription(
-                "**>uno** — Start a UNO match\n" +
-                "**>unoplay** — Play a card\n" +
-                "**>unotake** — Draw a card\n" +
-                "**>hangman** — Start Hangman\n" +
-                "**>hangmanend** — End Hangman\n" +
-                "**>guess** — Number guessing game\n"
-            );
-
-        const page2 = new EmbedBuilder()
-            .setColor(CYAN)
-            .setTitle("🎰 Gambling & Casino")
-            .setDescription(
-                "**>coinflip** — Flip a coin\n" +
-                "**>slots** — Spin the slot machine\n" +
-                "**>blackjack** — Start blackjack\n" +
-                "**>hit** — Hit in blackjack\n" +
-                "**>stand** — Stand in blackjack\n" +
-                "**>daily** — Claim daily reward\n" +
-                "**>balance** — Check your coins\n" +
-                "**>give** — Give coins to another user\n" +
-                "**>leaderboard** — Top richest players\n"
-            );
-
-        const page3 = new EmbedBuilder()
-            .setColor(CYAN)
-            .setTitle("🐉 Pokémon Commands")
-            .setDescription(
-                "**>pokemon** — View your Pokémon\n" +
-                "**>pokedex** — View Pokédex\n" +
-                "**>spawn** — Spawn a Pokémon\n" +
-                "**>catch** — Catch a Pokémon\n" +
-                "**>catchwild** — Catch wild Pokémon\n" +
-                "**>team** — View your team\n" +
-                "**>release** — Release a Pokémon\n" +
-                "**>trade** — Trade with someone\n" +
-                "**>fight** — Battle another player\n" +
-                "**>boss** — Spawn a boss\n" +
-                "**>fightboss** — Fight the boss\n" +
-                "**>gigantamax** — Gigantamax a Pokémon\n" +
-                "**>mega** — Mega evolve\n" +
-                "**>shop** — Pokémon shop\n" +
-                "**>buy** — Buy items\n" +
-                "**>use** — Use an item\n"
-            );
-
-        const page4 = new EmbedBuilder()
-            .setColor(CYAN)
-            .setTitle("🧭 Utility Commands")
-            .setDescription(
-                "**>ping** — Bot latency\n" +
-                "**>uptime** — Bot uptime\n" +
-                "**>afk** — Set AFK status\n" +
-                "**>reminder** — Set a reminder\n" +
-                "**>profile** — View your profile\n" +
-                "**>inventory** — View your items\n"
-            );
-
-        const page5 = new EmbedBuilder()
-            .setColor(CYAN)
-            .setTitle("🔒 Owner‑Only Commands")
-            .setDescription(
-                "**>ownerspawn** — Spawn a Pokémon\n" +
-                "**>ownercoins** — Give coins\n" +
-                "**>ownerreset** — Reset a user\n" +
-                "**>ownerwipe** — Wipe all data\n"
-            );
-
-        const pages = [page1, page2, page3, page4, page5];
-        let currentPage = 0;
-
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId("prev").setLabel("◀️").setStyle(1),
-            new ButtonBuilder().setCustomId("next").setLabel("▶️").setStyle(1)
+    const page1 = new EmbedBuilder()
+        .setColor(CYAN)
+        .setTitle("🎮 Game Commands")
+        .setDescription(
+            "**>uno** — Start a UNO match\n" +
+            "**>unoplay** — Play a card\n" +
+            "**>unotake** — Draw a card\n" +
+            "**>hangman** — Start Hangman\n" +
+            "**>guess** — Guess a letter in Hangman\n" +
+            "**>hangmanend** — End Hangman\n"
         );
 
-        const sent = await msg.reply({
+    const page2 = new EmbedBuilder()
+        .setColor(CYAN)
+        .setTitle("🎰 Gambling & Casino")
+        .setDescription(
+            "**>casino** — Open the PokéChaos Casino Lobby\n" +
+            "**>coinflip** — Flip a coin (all‑in + streaks)\n" +
+            "**>blackjack** — Start blackjack\n" +
+            "**>hit** — Hit in blackjack\n" +
+            "**>stand** — Stand in blackjack\n" +
+            "**>daily** — Claim daily reward\n" +
+            "**>balance** — Check your coins\n" +
+            "**>give** — Give coins to another user\n" +
+            "**>leaderboard** — Top richest players\n"
+        );
+
+    const page3 = new EmbedBuilder()
+        .setColor(CYAN)
+        .setTitle("🐉 Pokémon Commands")
+        .setDescription(
+            "**>pokemon** — View your Pokémon\n" +
+            "**>pokedex** — View Pokédex\n" +
+            "**>spawn** — Spawn a Pokémon\n" +
+            "**>catch** — Catch a Pokémon\n" +
+            "**>catchwild** — Catch wild Pokémon\n" +
+            "**>team** — View your team\n" +
+            "**>release** — Release a Pokémon\n" +
+            "**>trade** — Trade with someone\n" +
+            "**>fight** — Battle another player\n" +
+            "**>boss** — Spawn a boss\n" +
+            "**>fightboss** — Fight the boss\n" +
+            "**>gigantamax** — Gigantamax a Pokémon\n" +
+            "**>mega** — Mega evolve\n" +
+            "**>shop** — Pokémon shop\n" +
+            "**>buy** — Buy items\n" +
+            "**>use** — Use an item\n"
+        );
+
+    const page4 = new EmbedBuilder()
+        .setColor(CYAN)
+        .setTitle("🧭 Utility Commands")
+        .setDescription(
+            "**>ping** — Bot latency\n" +
+            "**>uptime** — Bot uptime\n" +
+            "**>afk** — Set AFK status\n" +
+            "**>reminder** — Set a reminder\n" +
+            "**>profile** — View your profile\n" +
+            "**>inventory** — View your items\n"
+        );
+
+    const page5 = new EmbedBuilder()
+        .setColor(CYAN)
+        .setTitle("🔒 Owner‑Only Commands")
+        .setDescription(
+            "**>ownerspawn** — Spawn a Pokémon\n" +
+            "**>ownercoins** — Give coins\n" +
+            "**>ownerreset** — Reset a user\n" +
+            "**>ownerwipe** — Wipe all data\n"
+        );
+
+    const pages = [page1, page2, page3, page4, page5];
+    let currentPage = 0;
+
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId("prev").setLabel("◀️").setStyle(1),
+        new ButtonBuilder().setCustomId("next").setLabel("▶️").setStyle(1)
+    );
+
+    const sent = await msg.reply({
+        embeds: [pages[currentPage]],
+        components: [row]
+    });
+
+    const collector = sent.createMessageComponentCollector({ time: 60000 });
+
+    collector.on("collect", async (i) => {
+        if (i.user.id !== msg.author.id)
+            return i.reply({ content: "This menu isn't for you.", ephemeral: true });
+
+        if (i.customId === "prev") {
+            currentPage = currentPage === 0 ? pages.length - 1 : currentPage - 1;
+        } else {
+            currentPage = currentPage === pages.length - 1 ? 0 : currentPage + 1;
+        }
+
+        await i.update({
             embeds: [pages[currentPage]],
             components: [row]
         });
+    });
 
-        const collector = sent.createMessageComponentCollector({ time: 60000 });
+    collector.on("end", () => {
+        sent.edit({ components: [] }).catch(() => {});
+    });
 
-        collector.on("collect", async (i) => {
-            if (i.user.id !== msg.author.id)
-                return i.reply({ content: "This menu isn't for you.", ephemeral: true });
-
-            if (i.customId === "prev") {
-                currentPage = currentPage === 0 ? pages.length - 1 : currentPage - 1;
-            } else {
-                currentPage = currentPage === pages.length - 1 ? 0 : currentPage + 1;
-            }
-
-            await i.update({
-                embeds: [pages[currentPage]],
-                components: [row]
-            });
-        });
-
-        collector.on("end", () => {
-            sent.edit({ components: [] }).catch(() => {});
-        });
-
-        return;
-    }
-
-    // ===============================
-    // PREMIUM ANIMATED SLOTS (INSIDE HANDLER)
-    // ===============================
-    if (cmd === "slots") {
-        (async () => {
-
-            const bet = parseInt(args[0]);
-            if (!bet || bet <= 0) return msg.reply("Enter a valid bet amount.");
-
-            const bal = getCoins(msg.author.id);
-            if (bal < bet) return msg.reply("You don't have enough coins.");
-
-            const symbols = ["💎", "⭐", "🍀", "🔥", "7️⃣", "💰"];
-
-            const spin = () => [
-                symbols[Math.floor(Math.random() * symbols.length)],
-                symbols[Math.floor(Math.random() * symbols.length)],
-                symbols[Math.floor(Math.random() * symbols.length)]
-            ];
-
-            const frame1 = ["⬜", "⬜", "⬜"];
-            const frame2 = ["🔄", "⬜", "⬜"];
-            const frame3 = ["🔄", "🔄", "⬜"];
-            const frame4 = ["🔄", "🔄", "🔄"];
-
-            const final = spin();
-
-            const msgSlot = await msg.channel.send(
-                `🎰 **SLOTS**\n[ ${frame1[0]} | ${frame1[1]} | ${frame1[2]} ]`
-            );
-
-            setTimeout(() => {
-                msgSlot.edit(`🎰 **SLOTS**\n[ ${frame2[0]} | ${frame2[1]} | ${frame2[2]} ]`);
-            }, 500);
-
-            setTimeout(() => {
-                msgSlot.edit(`🎰 **SLOTS**\n[ ${frame3[0]} | ${frame3[1]} | ${frame3[2]} ]`);
-            }, 900);
-
-            setTimeout(() => {
-                msgSlot.edit(`🎰 **SLOTS**\n[ ${frame4[0]} | ${frame4[1]} | ${frame4[2]} ]`);
-            }, 1300);
-
-            setTimeout(() => {
-                const [a, b, c] = final;
-
-                let resultText = "";
-                let winAmount = 0;
-
-                if (a === b && b === c) {
-                    winAmount = bet * 5;
-                    addCoins(msg.author.id, winAmount);
-                    resultText = `🎉 **JACKPOT!** Triple ${a}!\nYou won **${winAmount}** coins!`;
-                } else if (a === b || b === c || a === c) {
-                    winAmount = bet * 2;
-                    addCoins(msg.author.id, winAmount);
-                    resultText = `✨ Nice! You matched two symbols!\nYou won **${winAmount}** coins!`;
-                } else {
-                    removeCoins(msg.author.id, bet);
-                    resultText = `💀 You lost **${bet}** coins.`;
-                }
-
-                msgSlot.edit(
-                    `🎰 **SLOTS**\n[ ${a} | ${b} | ${c} ]\n\n${resultText}`
-                );
-            }, 2000);
-
-        })();
-    }
-
-}); // <-- THIS IS NOW THE REAL END OF THE HANDLER
-
+    return;
+}
 // ===============================
 // COMMAND HANDLER (END)
 // ===============================
+
 
 // ===============================
 // BOSS GENERATOR
@@ -813,7 +744,30 @@ commands.uno = async (message, args) => {
 };
 
 // ===============================
-// HANGMAN GAME
+// HANGMAN ASCII STAGES (ANIMATED)
+// ===============================
+const hangmanStages = [
+    "```\n\n\n\n\n=========\n```",
+    "```\n  |\n  |\n  |\n  |\n=========\n```",
+    "```\n  +---+\n  |   |\n      |\n      |\n      |\n=========\n```",
+    "```\n  +---+\n  |   |\n  O   |\n      |\n      |\n=========\n```",
+    "```\n  +---+\n  |   |\n  O   |\n  |   |\n      |\n=========\n```",
+    "```\n  +---+\n  |   |\n  O   |\n /|\\  |\n      |\n=========\n```",
+    "```\n  +---+\n  |   |\n  O   |\n /|\\  |\n / \\  |\n=========\n```"
+];
+
+// ===============================
+// WORD FORMATTER
+// ===============================
+function formatHangmanWord(word, guessed) {
+    return word
+        .split("")
+        .map(letter => (guessed.includes(letter) ? letter : "-"))
+        .join("");
+}
+
+// ===============================
+// HANGMAN START
 // ===============================
 commands.hangman = async (message, args) => {
     const guildId = message.guild.id;
@@ -830,10 +784,12 @@ commands.hangman = async (message, args) => {
     }
 
     const word = hangmanWords[Math.floor(Math.random() * hangmanWords.length)];
+
     hangmanGames[guildId] = {
         word,
         guessed: [],
-        wrong: 0
+        wrong: 0,
+        wrongLetters: []
     };
 
     const display = formatHangmanWord(word, []);
@@ -842,12 +798,18 @@ commands.hangman = async (message, args) => {
         embeds: [
             chaosEmbed(
                 "🎮 Hangman Started!",
-                `Word: \`${display}\`\nWrong guesses: **0/6**`
+                `${hangmanStages[0]}\n` +
+                `Word: \`${display}\`\n` +
+                `Wrong guesses: **0/6**\n` +
+                `Wrong letters: *(none yet)*`
             )
         ]
     });
 };
 
+// ===============================
+// HANGMAN GUESS
+// ===============================
 commands.guess = async (message, args) => {
     const guildId = message.guild.id;
     const game = hangmanGames[guildId];
@@ -868,7 +830,7 @@ commands.guess = async (message, args) => {
         });
     }
 
-    if (game.guessed.includes(letter)) {
+    if (game.guessed.includes(letter) || game.wrongLetters.includes(letter)) {
         return message.reply({
             embeds: [
                 chaosEmbed("🔁 Already Guessed", `You've already guessed **${letter}**.`)
@@ -876,10 +838,13 @@ commands.guess = async (message, args) => {
         });
     }
 
-    game.guessed.push(letter);
-
-    if (!game.word.includes(letter)) {
+    // Correct guess
+    if (game.word.includes(letter)) {
+        game.guessed.push(letter);
+    } else {
+        // Wrong guess
         game.wrong++;
+        game.wrongLetters.push(letter);
 
         if (game.wrong >= 6) {
             delete hangmanGames[guildId];
@@ -887,6 +852,7 @@ commands.guess = async (message, args) => {
                 embeds: [
                     chaosEmbed(
                         "💀 Hangman Lost",
+                        `${hangmanStages[6]}\n` +
                         `The word was **${game.word}**.\nBetter luck next time!`
                     )
                 ]
@@ -896,12 +862,14 @@ commands.guess = async (message, args) => {
 
     const display = formatHangmanWord(game.word, game.guessed);
 
+    // Win condition
     if (!display.includes("-")) {
         delete hangmanGames[guildId];
         return message.reply({
             embeds: [
                 chaosEmbed(
                     "🎉 Hangman Won!",
+                    `${hangmanStages[game.wrong]}\n` +
                     `You guessed the word: **${game.word}**!`
                 )
             ]
@@ -912,12 +880,18 @@ commands.guess = async (message, args) => {
         embeds: [
             chaosEmbed(
                 "🎮 Hangman",
-                `Word: \`${display}\`\nWrong guesses: **${game.wrong}/6**`
+                `${hangmanStages[game.wrong]}\n` +
+                `Word: \`${display}\`\n` +
+                `Wrong guesses: **${game.wrong}/6**\n` +
+                `Wrong letters: **${game.wrongLetters.join(", ") || "(none)"}**`
             )
         ]
     });
 };
 
+// ===============================
+// HANGMAN END
+// ===============================
 commands.hangmanend = async (message) => {
     const guildId = message.guild.id;
 
@@ -937,6 +911,7 @@ commands.hangmanend = async (message) => {
         ]
     });
 };
+
 // ===============================
 // UNIFIED ECONOMY SYSTEM (QuickDB v9)
 // ===============================
@@ -959,93 +934,90 @@ async function removeCoins(userId, amount) {
 
 
 // ===============================
-// PREMIUM ANIMATED CASINO SYSTEM
+// POKÉCHAOS CASINO LOBBY (HYPER ANIMATED)
 // ===============================
 
-// Assumes:
-// - getCoins(userId)
-// - addCoins(userId, amount)
-// - removeCoins(userId, amount)
-// - commands object exists
+commands.casino = async (message) => {
+    const { ActionRowBuilder, ButtonBuilder, EmbedBuilder } = require("discord.js");
 
+    // Animated intro
+    const loading = await message.reply("🎰 Loading PokéChaos Casino...");
+    await new Promise(r => setTimeout(r, 600));
+    await loading.edit("💡 Powering neon lights...");
+    await new Promise(r => setTimeout(r, 600));
+    await loading.edit("🎞️ Spinning reels...");
+    await new Promise(r => setTimeout(r, 600));
+    await loading.edit("🃏 Shuffling cards...");
+    await new Promise(r => setTimeout(r, 600));
+    await loading.edit("🪙 Polishing coins...");
+    await new Promise(r => setTimeout(r, 600));
 
-// Helper: cooldown check (5s)
-function canUseCasino(userId) {
-    const now = Date.now();
-    const last = casinoCooldown.get(userId) || 0;
-    if (now - last < 5000) return false;
-    casinoCooldown.set(userId, now);
-    return true;
-}
+    // Casino lobby embed
+    const embed = new EmbedBuilder()
+        .setColor(0xff0055)
+        .setTitle("🎰 **PokéChaos Hyper Casino**")
+        .setDescription(
+            "Welcome to the **PokéChaos Casino Lobby**!\n" +
+            "Choose your game below:\n\n" +
+            "🎰 **Slots** — Hyper‑animated 3×3 reels\n" +
+            "🪙 **Coinflip** — All‑in mode + streak bonuses\n" +
+            "🃏 **Blackjack** — Multi‑round, animated dealer\n\n" +
+            "Good luck, trainer! 🍀"
+        )
+        .setThumbnail("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/master-ball.png")
+        .setImage("https://i.imgur.com/0Z6xQfS.gif") // neon casino gif
+        .setFooter({ text: "PokéChaos Casino — Bet responsibly." });
 
-// Helper: get jackpot
-async function getJackpot() {
-    const val = await db.get(JACKPOT_KEY);
-    return val || 0;
-}
+    // Buttons (Pokémon themed)
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId("casino_slots")
+            .setLabel("🎰 Slots")
+            .setStyle(1),
 
-// Helper: add to jackpot
-async function addToJackpot(amount) {
-    const current = await getJackpot();
-    await db.set(JACKPOT_KEY, current + amount);
-}
+        new ButtonBuilder()
+            .setCustomId("casino_coinflip")
+            .setLabel("🪙 Coinflip")
+            .setStyle(3),
 
-// Helper: reset jackpot
-async function resetJackpot() {
-    await db.set(JACKPOT_KEY, 0);
-}
-
-// ===============================
-// SLOTS (Animated 3x3, jackpots, near-miss)
-// ===============================
-
-const slotSymbols = [
-    { emoji: "🍒", weight: 30, payout: 2 },
-    { emoji: "🍋", weight: 25, payout: 3 },
-    { emoji: "🍇", weight: 20, payout: 4 },
-    { emoji: "⭐", weight: 15, payout: 6 },
-    { emoji: "💎", weight: 8, payout: 10 },
-    { emoji: "👑", weight: 2, payout: 50 } // jackpot symbol
-];
-
-function rollSymbol() {
-    const total = slotSymbols.reduce((a, s) => a + s.weight, 0);
-    let r = Math.random() * total;
-    for (const s of slotSymbols) {
-        if (r < s.weight) return s;
-        r -= s.weight;
-    }
-    return slotSymbols[0];
-}
-
-function formatReels(reels) {
-    return (
-        `${reels[0][0].emoji} | ${reels[0][1].emoji} | ${reels[0][2].emoji}\n` +
-        `${reels[1][0].emoji} | ${reels[1][1].emoji} | ${reels[1][2].emoji}\n` +
-        `${reels[2][0].emoji} | ${reels[2][1].emoji} | ${reels[2][2].emoji}`
+        new ButtonBuilder()
+            .setCustomId("casino_blackjack")
+            .setLabel("🃏 Blackjack")
+            .setStyle(4)
     );
-}
 
-function calculateSlotsWin(reels, bet) {
-    let multiplier = 0;
-    let jackpotHit = false;
+    await loading.edit({ content: "", embeds: [embed], components: [row] });
 
-    // Check middle row for main win
-    const mid = reels[1];
-    if (mid[0].emoji === mid[1].emoji && mid[1].emoji === mid[2].emoji) {
-        multiplier = mid[0].payout;
-        if (mid[0].emoji === "👑") jackpotHit = true;
-    }
+    // Collector
+    const collector = loading.createMessageComponentCollector({ time: 60000 });
 
-    // Small bonus for diagonals
-    const diag1 = [reels[0][0], reels[1][1], reels[2][2]];
-    const diag2 = [reels[0][2], reels[1][1], reels[2][0]];
-    if (diag1.every(s => s.emoji === diag1[0].emoji)) multiplier += Math.floor(diag1[0].payout / 2);
-    if (diag2.every(s => s.emoji === diag2[0].emoji)) multiplier += Math.floor(diag2[0].payout / 2);
+    collector.on("collect", async (i) => {
+        if (i.user.id !== message.author.id)
+            return i.reply({ content: "This casino menu isn't for you.", ephemeral: true });
 
-    const win = bet * multiplier;
-    return { win, multiplier, jackpotHit };
-}
+        if (i.customId === "casino_slots") {
+            await i.reply("🎰 **Opening Slots...**");
+            return commands.slots(message, []); // call your premium slots
+        }
+
+        if (i.customId === "casino_coinflip") {
+            await i.reply("🪙 **Opening Coinflip...**");
+            return commands.coinflip(message, []); // call coinflip
+        }
+
+        if (i.customId === "casino_blackjack") {
+            await i.reply("🃏 **Opening Blackjack...**");
+            return commands.blackjack(message, ["50"]); // default bet
+        }
+    });
+
+    collector.on("end", () => {
+        loading.edit({ components: [] }).catch(() => {});
+    });
+};
+// ===============================
+// HYPER ANIMATED SLOTS (3×3, flashing, jackpot explosions)
+// ===============================
 
 commands.slots = async (message, args) => {
     const userId = message.author.id;
@@ -1062,11 +1034,30 @@ commands.slots = async (message, args) => {
     if (coins < bet) return message.reply("💸 You don't have enough coins for that bet.");
 
     await removeCoins(userId, bet);
-    await addToJackpot(Math.floor(bet * 0.1)); // 10% to jackpot
+    await addToJackpot(Math.floor(bet * 0.1));
 
-    // Animated reels
-    const spinningMsg = await message.reply("🎰 Spinning the reels...\n[ 🎞️ | 🎞️ | 🎞️ ]\n[ 🎞️ | 🎞️ | 🎞️ ]\n[ 🎞️ | 🎞️ | 🎞️ ]");
+    // Animated intro
+    const msgSpin = await message.reply("🎰 **Initializing Hyper Slots...**");
+    await new Promise(r => setTimeout(r, 400));
+    await msgSpin.edit("🎞️ Loading reels...");
+    await new Promise(r => setTimeout(r, 400));
+    await msgSpin.edit("💡 Powering neon lights...");
+    await new Promise(r => setTimeout(r, 400));
 
+    // Reel spin animation frames
+    const frames = [
+        "🎰 **SLOTS**\n[ 🎞️ | 🎞️ | 🎞️ ]\n[ 🎞️ | 🎞️ | 🎞️ ]\n[ 🎞️ | 🎞️ | 🎞️ ]",
+        "🎰 **SLOTS**\n[ 🔄 | 🎞️ | 🎞️ ]\n[ 🎞️ | 🔄 | 🎞️ ]\n[ 🎞️ | 🎞️ | 🔄 ]",
+        "🎰 **SLOTS**\n[ 🔄 | 🔄 | 🎞️ ]\n[ 🎞️ | 🔄 | 🔄 ]\n[ 🔄 | 🎞️ | 🔄 ]",
+        "🎰 **SLOTS**\n[ 🔄 | 🔄 | 🔄 ]\n[ 🔄 | 🔄 | 🔄 ]\n[ 🔄 | 🔄 | 🔄 ]"
+    ];
+
+    for (const f of frames) {
+        await msgSpin.edit(f);
+        await new Promise(r => setTimeout(r, 300));
+    }
+
+    // Generate final reels
     const reels = [
         [rollSymbol(), rollSymbol(), rollSymbol()],
         [rollSymbol(), rollSymbol(), rollSymbol()],
@@ -1076,41 +1067,29 @@ commands.slots = async (message, args) => {
     const { win, multiplier, jackpotHit } = calculateSlotsWin(reels, bet);
     const jackpot = await getJackpot();
 
-    let resultText = `🎰 **Premium Slots** — Bet: ${bet} coins\n\n`;
-    resultText += formatReels(reels) + "\n\n";
+    let result = `🎰 **Hyper Slots** — Bet: ${bet} coins\n\n`;
+    result += formatReels(reels) + "\n\n";
 
     if (win > 0) {
         await addCoins(userId, win);
-        resultText += `✨ You won **${win} coins** (x${multiplier})!\n`;
+        result += `✨ **WIN!** You earned **${win} coins** (x${multiplier})!\n`;
     } else {
-        resultText += "💀 No win this time...\n";
+        result += "💀 **No win this time...**\n";
     }
 
     if (jackpotHit) {
         await addCoins(userId, jackpot);
         await resetJackpot();
-        resultText += `👑 **JACKPOT!** You also won the jackpot of **${jackpot} coins!**\n`;
+        result += `👑 **JACKPOT HIT!** You won **${jackpot} coins!**\n🔥 The casino shakes with energy!`;
     } else {
-        // Near-miss tease
-        resultText += `💰 Current jackpot: **${jackpot} coins**\n`;
+        result += `💰 Jackpot: **${jackpot} coins**\n`;
     }
 
-    await spinningMsg.edit(resultText);
+    await msgSpin.edit(result);
 };
-
 // ===============================
-// COINFLIP (streaks, all-in mode)
+// HYPER ANIMATED COINFLIP
 // ===============================
-
-const streakKey = id => `cf_streak_${id}`;
-
-async function getStreak(id) {
-    return (await db.get(streakKey(id))) || 0;
-}
-
-async function setStreak(id, val) {
-    await db.set(streakKey(id), val);
-}
 
 commands.coinflip = async (message, args) => {
     const userId = message.author.id;
@@ -1125,76 +1104,46 @@ commands.coinflip = async (message, args) => {
     const coins = await getCoins(userId);
     let bet = 0;
 
-    if (betArg === "all" || betArg === "all-in") {
-        bet = coins;
-    } else {
-        bet = parseInt(betArg) || 10;
-    }
+    if (betArg === "all" || betArg === "all-in") bet = coins;
+    else bet = parseInt(betArg) || 10;
 
-    if (bet <= 0) return message.reply("🪙 Bet must be a positive number.");
-    if (bet > coins) return message.reply("💸 You don't have enough coins for that bet.");
-    if (bet > 200000) return message.reply("🪙 Max coinflip bet is 200,000 coins.");
+    if (bet <= 0) return message.reply("🪙 Bet must be positive.");
+    if (bet > coins) return message.reply("💸 Not enough coins.");
+    if (bet > 200000) return message.reply("🪙 Max bet is 200,000.");
 
     await removeCoins(userId, bet);
 
     const streak = await getStreak(userId);
-    const bonusMultiplier = 1 + Math.min(streak * 0.1, 1.0); // up to x2
+    const bonus = 1 + Math.min(streak * 0.1, 1.0);
+
+    const msgFlip = await message.reply("🪙 **Spinning the coin...**");
+    await new Promise(r => setTimeout(r, 400));
+    await msgFlip.edit("🌀 The coin spins faster...");
+    await new Promise(r => setTimeout(r, 400));
+    await msgFlip.edit("💫 Almost landing...");
+    await new Promise(r => setTimeout(r, 400));
 
     const flip = Math.random() < 0.5 ? "heads" : "tails";
 
-    let text = `🪙 **Coinflip** — Bet: ${bet} coins\nYou chose **${choice.toUpperCase()}**...\n\n`;
-    text += `🌀 The coin spins...\n`;
-
-    await message.channel.send("🌀 ...");
-
-    text += `🪙 It lands on **${flip.toUpperCase()}**!\n\n`;
+    let result = `🪙 **Coinflip** — Bet: ${bet} coins\n`;
+    result += `You chose **${choice.toUpperCase()}**.\n\n`;
+    result += `🪙 It lands on **${flip.toUpperCase()}**!\n\n`;
 
     if (flip === choice) {
-        const win = Math.floor(bet * 2 * bonusMultiplier);
+        const win = Math.floor(bet * 2 * bonus);
         await addCoins(userId, win);
         await setStreak(userId, streak + 1);
-        text += `✅ You **WIN**! You receive **${win} coins** (streak x${bonusMultiplier.toFixed(1)}).\n`;
-        text += `🔥 Win streak: **${streak + 1}**\n`;
+        result += `✅ **WIN!** You earned **${win} coins**!\n🔥 Streak: **${streak + 1}**`;
     } else {
         await setStreak(userId, 0);
-        text += `❌ You **LOSE**. Better luck next time.\n`;
-        text += `💤 Win streak reset.\n`;
+        result += `❌ **LOSE!** Better luck next time.\n💤 Streak reset.`;
     }
 
-    await message.reply(text);
+    await msgFlip.edit(result);
 };
-
 // ===============================
-// BLACKJACK (multi-round, animated)
+// HYPER ANIMATED BLACKJACK
 // ===============================
-
-function drawCard() {
-    const ranks = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
-    const suits = ["♠", "♥", "♦", "♣"];
-    const rank = ranks[Math.floor(Math.random() * ranks.length)];
-    const suit = suits[Math.floor(Math.random() * suits.length)];
-    return { rank, suit };
-}
-
-function cardValue(card) {
-    if (["J", "Q", "K"].includes(card.rank)) return 10;
-    if (card.rank === "A") return 11;
-    return parseInt(card.rank);
-}
-
-function handValue(hand) {
-    let total = hand.reduce((sum, c) => sum + cardValue(c), 0);
-    let aces = hand.filter(c => c.rank === "A").length;
-    while (total > 21 && aces > 0) {
-        total -= 10;
-        aces--;
-    }
-    return total;
-}
-
-function formatHand(hand) {
-    return hand.map(c => `${c.rank}${c.suit}`).join(" ");
-}
 
 commands.blackjack = async (message, args) => {
     const userId = message.author.id;
@@ -1204,56 +1153,57 @@ commands.blackjack = async (message, args) => {
     }
 
     const bet = parseInt(args[0]) || 50;
-    if (bet <= 0) return message.reply("🃏 Bet must be a positive number.");
-    if (bet > 200000) return message.reply("🃏 Max blackjack bet is 200,000 coins.");
+    if (bet <= 0) return message.reply("🃏 Bet must be positive.");
+    if (bet > 200000) return message.reply("🃏 Max bet is 200,000.");
 
     const coins = await getCoins(userId);
-    if (coins < bet) return message.reply("💸 You don't have enough coins for that bet.");
+    if (coins < bet) return message.reply("💸 Not enough coins.");
 
     await removeCoins(userId, bet);
 
     const playerHand = [drawCard(), drawCard()];
     const dealerHand = [drawCard(), drawCard()];
 
-    const game = {
+    blackjackGames.set(userId, {
         bet,
         playerHand,
         dealerHand,
         finished: false
-    };
+    });
 
-    blackjackGames.set(userId, game);
+    const msgBJ = await message.reply("🃏 **Shuffling deck...**");
+    await new Promise(r => setTimeout(r, 400));
+    await msgBJ.edit("🎴 Dealing cards...");
+    await new Promise(r => setTimeout(r, 400));
 
     let text = `🃏 **Blackjack** — Bet: ${bet} coins\n\n`;
     text += `🧍 Your hand: ${formatHand(playerHand)} (Total: ${handValue(playerHand)})\n`;
     text += `🏦 Dealer shows: ${formatHand([dealerHand[0]])}\n\n`;
-    text += `Type **>hit** to draw a card or **>stand** to hold.`;
+    text += `Type **>hit** or **>stand**`;
 
-    await message.reply(text);
+    await msgBJ.edit(text);
 };
 
 commands.hit = async (message) => {
     const userId = message.author.id;
     const game = blackjackGames.get(userId);
 
-    if (!game || game.finished) {
-        return message.reply("🃏 You have no active blackjack game. Use >blackjack <bet> to start.");
-    }
+    if (!game || game.finished)
+        return message.reply("🃏 No active blackjack game.");
 
     game.playerHand.push(drawCard());
+    const total = handValue(game.playerHand);
 
-    const playerTotal = handValue(game.playerHand);
-
-    let text = `🃏 **Blackjack — HIT**\n\n`;
-    text += `🧍 Your hand: ${formatHand(game.playerHand)} (Total: ${playerTotal})\n`;
+    let text = `🃏 **HIT**\n\n`;
+    text += `🧍 Your hand: ${formatHand(game.playerHand)} (Total: ${total})\n`;
     text += `🏦 Dealer shows: ${formatHand([game.dealerHand[0]])}\n\n`;
 
-    if (playerTotal > 21) {
+    if (total > 21) {
         game.finished = true;
-        text += `💀 You **BUST**! You lose your bet of ${game.bet} coins.\n`;
         blackjackGames.delete(userId);
+        text += `💀 **BUST!** You lose your bet of ${game.bet}.`;
     } else {
-        text += `Type **>hit** to draw again or **>stand** to hold.`;
+        text += `Type **>hit** or **>stand**`;
     }
 
     await message.reply(text);
@@ -1263,11 +1213,11 @@ commands.stand = async (message) => {
     const userId = message.author.id;
     const game = blackjackGames.get(userId);
 
-    if (!game || game.finished) {
-        return message.reply("🃏 You have no active blackjack game. Use >blackjack <bet> to start.");
-    }
+    if (!game || game.finished)
+        return message.reply("🃏 No active blackjack game.");
 
     let dealerTotal = handValue(game.dealerHand);
+
     while (dealerTotal < 17) {
         game.dealerHand.push(drawCard());
         dealerTotal = handValue(game.dealerHand);
@@ -1275,19 +1225,19 @@ commands.stand = async (message) => {
 
     const playerTotal = handValue(game.playerHand);
 
-    let text = `🃏 **Blackjack — STAND**\n\n`;
+    let text = `🃏 **STAND**\n\n`;
     text += `🧍 Your hand: ${formatHand(game.playerHand)} (Total: ${playerTotal})\n`;
     text += `🏦 Dealer hand: ${formatHand(game.dealerHand)} (Total: ${dealerTotal})\n\n`;
 
     if (dealerTotal > 21 || playerTotal > dealerTotal) {
         const win = game.bet * 2;
         await addCoins(userId, win);
-        text += `✅ You **WIN**! You receive **${win} coins**.\n`;
+        text += `✅ **WIN!** You earned **${win} coins**!`;
     } else if (dealerTotal === playerTotal) {
         await addCoins(userId, game.bet);
-        text += `➖ **PUSH**. Your bet of ${game.bet} coins is returned.\n`;
+        text += `➖ **PUSH** — Bet returned.`;
     } else {
-        text += `❌ You **LOSE**. Better luck next time.\n`;
+        text += `❌ **LOSE!** Better luck next time.`;
     }
 
     game.finished = true;
@@ -1612,41 +1562,51 @@ commands.trade = async (message, args) => {
 };
 
 // ===============================
-// CATCH (OWNERSPAWN / AUTO-SPAWN)
+// OWNERSPAWN (SPAWN ANY POKÉMON BY ID OR NAME)
 // ===============================
 
-commands.catch = async (message) => {
-    if (!global.activeSpawn) {
+commands.ownerspawn = async (message, args) => {
+    if (message.author.id !== OWNER_ID) {
         return message.reply({
-            embeds: [chaosEmbed("❌ No Pokémon", "There is nothing to catch.")]
+            embeds: [chaosEmbed("❌ No Permission", "Only the bot owner can use this command.")]
         });
     }
 
-    if (global.activeSpawn.channel !== message.channel.id) {
+    if (!args[0]) {
         return message.reply({
-            embeds: [chaosEmbed("❌ Wrong Channel", "The Pokémon is not here.")]
+            embeds: [chaosEmbed("❌ Missing Pokémon", "You must provide a Pokémon name or Pokédex number.")]
         });
     }
 
-    const caughtName = global.activeSpawn.name;
-    delete global.activeSpawn;
+    const query = args[0].toLowerCase();
 
-    if (!userPokemon[message.author.id]) {
-        userPokemon[message.author.id] = [];
+    // Fetch Pokémon data
+    const data = await getPokemonData(query);
+    if (!data) {
+        return message.reply({
+            embeds: [chaosEmbed("❌ Invalid Pokémon", "Could not find that Pokémon.")]
+        });
     }
 
-    userPokemon[message.author.id].push(caughtName);
+    // Proper display name
+    const displayName =
+        data.name.charAt(0).toUpperCase() + data.name.slice(1);
 
-    const data = await getPokemonData(caughtName);
-    const displayName = data?.name || caughtName;
-    const typeText = data ? data.types.map(t => `\`${t}\``).join(", ") : "Unknown";
+    const typeText = data.types.map(t => `\`${t}\``).join(", ");
 
+    // Save active spawn for >catch
+    global.activeSpawn = {
+        name: data.name.toLowerCase(),   // <-- FIXED: saves actual Pokémon name, not number
+        channel: message.channel.id
+    };
+
+    // Build embed
     const embed = chaosEmbed(
-        "🎉 Pokémon Caught!",
-        `You caught **${displayName}**!\nTypes: ${typeText}`
+        "✨ Owner Spawned Pokémon!",
+        `A wild **${displayName}** has appeared!\nTypes: ${typeText}`
     );
 
-    if (data?.sprite) embed.setThumbnail(data.sprite);
+    if (data.sprite) embed.setThumbnail(data.sprite);
 
     return message.reply({ embeds: [embed] });
 };
