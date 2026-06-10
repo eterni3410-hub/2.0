@@ -1101,19 +1101,19 @@ commands.casino = async (message) => {
         if (i.user.id !== message.author.id)
             return i.reply({ content: "This casino menu isn't for you.", ephemeral: true });
 
+        // REQUIRED FIX — defer interaction so commands can reply normally
+        await i.deferReply();
+
         if (i.customId === "casino_slots") {
-            await i.reply("🎰 **Opening Slots...**");
-            return commands.slots(i, []); // FIXED
+            return commands.slots(i, []); 
         }
 
         if (i.customId === "casino_coinflip") {
-            await i.reply("🪙 **Opening Coinflip...**");
-            return commands.coinflip(i, []); // FIXED
+            return commands.coinflip(i, []); 
         }
 
         if (i.customId === "casino_blackjack") {
-            await i.reply("🃏 **Opening Blackjack...**");
-            return commands.blackjack(i, ["50"]); // FIXED
+            return commands.blackjack(i, ["50"]); 
         }
     });
 
