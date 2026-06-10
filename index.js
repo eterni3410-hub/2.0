@@ -1103,17 +1103,17 @@ commands.casino = async (message) => {
 
         if (i.customId === "casino_slots") {
             await i.reply("🎰 **Opening Slots...**");
-            return commands.slots(message, []);
+            return commands.slots(i, []); // FIXED
         }
 
         if (i.customId === "casino_coinflip") {
             await i.reply("🪙 **Opening Coinflip...**");
-            return commands.coinflip(message, []);
+            return commands.coinflip(i, []); // FIXED
         }
 
         if (i.customId === "casino_blackjack") {
             await i.reply("🃏 **Opening Blackjack...**");
-            return commands.blackjack(message, ["50"]);
+            return commands.blackjack(i, ["50"]); // FIXED
         }
     });
 
