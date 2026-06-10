@@ -2836,17 +2836,12 @@ commands.uptime = async (message) => {
     const embed = new EmbedBuilder()
         .setColor(0x0f859d)
         .setTitle("⏱️ Bot Uptime")
-        .setDescription(
-            `**${hours}h ${minutes}m ${seconds}s**`
-        )
+        .setDescription(`**${hours}h ${minutes}m ${seconds}s**`);
 
     return message.reply({ embeds: [embed] });
+}; // <-- THIS WAS MISSING
 
-commands.uptime = async (message) => {
-    ...
-}; // <-- THIS closes uptime ONLY
-
-}); // <-- THIS closes messageCreate
+}); // <-- NOW this correctly closes messageCreate
 
 // ===============================
 // COMMAND HANDLER (END)
