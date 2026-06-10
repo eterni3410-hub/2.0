@@ -148,9 +148,9 @@ client.on("messageCreate", async (msg) => {
     const args = msg.content.slice(PREFIX.length).trim().split(/ +/);
     const cmd = args.shift().toLowerCase();
 
-    // ===============================
+    // -----------------------------
     // PING
-    // ===============================
+    // -----------------------------
     if (cmd === "ping") {
         return msg.reply("Pong!");
     }
