@@ -2841,8 +2841,9 @@ commands.uptime = async (message) => {
         )
 
     return message.reply({ embeds: [embed] });
-};
+
 }); // <-- THIS closes the event listener
+
 // ===============================
 // COMMAND HANDLER (END)
 // ===============================
