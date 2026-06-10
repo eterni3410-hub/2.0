@@ -1083,28 +1083,16 @@ commands.casino = async (message) => {
             "Good luck, trainer! 🍀"
         )
         .setThumbnail("https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/master-ball.png")
-        .setImage("https://i.pinimg.com/originals/16/a8/d5/16a8d5f089845878ac25e7f7c2c7e022.png") // YOUR IMAGE
+        .setImage("https://i.pinimg.com/originals/16/a8/d5/16a8d5f089845878ac25e7f7c2c7e022.png")
         .setFooter({ text: "PokéChaos Casino — Bet responsibly." });
 
     // Buttons
     const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId("casino_slots")
-            .setLabel("🎰 Slots")
-            .setStyle(1),
-
-        new ButtonBuilder()
-            .setCustomId("casino_coinflip")
-            .setLabel("🪙 Coinflip")
-            .setStyle(3),
-
-        new ButtonBuilder()
-            .setCustomId("casino_blackjack")
-            .setLabel("🃏 Blackjack")
-            .setStyle(4)
+        new ButtonBuilder().setCustomId("casino_slots").setLabel("🎰 Slots").setStyle(1),
+        new ButtonBuilder().setCustomId("casino_coinflip").setLabel("🪙 Coinflip").setStyle(3),
+        new ButtonBuilder().setCustomId("casino_blackjack").setLabel("🃏 Blackjack").setStyle(4)
     );
 
-    // attach collector to the FINAL message
     const sent = await loading.edit({ content: "", embeds: [embed], components: [row] });
 
     const collector = sent.createMessageComponentCollector({ time: 60000 });
@@ -1115,17 +1103,17 @@ commands.casino = async (message) => {
 
         if (i.customId === "casino_slots") {
             await i.reply("🎰 **Opening Slots...**");
-            return commands.slots(message, []); 
+            return commands.slots(message, []);
         }
 
         if (i.customId === "casino_coinflip") {
             await i.reply("🪙 **Opening Coinflip...**");
-            return commands.coinflip(message, []); 
+            return commands.coinflip(message, []);
         }
 
         if (i.customId === "casino_blackjack") {
             await i.reply("🃏 **Opening Blackjack...**");
-            return commands.blackjack(message, ["50"]); 
+            return commands.blackjack(message, ["50"]);
         }
     });
 
@@ -1135,7 +1123,7 @@ commands.casino = async (message) => {
 };
 
 // ===============================
-// HYPER ANIMATED SLOTS (3×3, flashing, jackpot explosions)
+// HYPER ANIMATED SLOTS
 // ===============================
 
 commands.slots = async (message, args) => {
@@ -1155,7 +1143,6 @@ commands.slots = async (message, args) => {
     removeCoins(userId, bet);
     addToJackpot(Math.floor(bet * 0.1));
 
-    // Animated intro
     const msgSpin = await message.reply("🎰 **Initializing Hyper Slots...**");
     await new Promise(r => setTimeout(r, 400));
     await msgSpin.edit("🎞️ Loading reels...");
@@ -1163,7 +1150,6 @@ commands.slots = async (message, args) => {
     await msgSpin.edit("💡 Powering neon lights...");
     await new Promise(r => setTimeout(r, 400));
 
-    // Reel spin animation frames
     const frames = [
         "🎰 **SLOTS**\n[ 🎞️ | 🎞️ | 🎞️ ]\n[ 🎞️ | 🎞️ | 🎞️ ]\n[ 🎞️ | 🎞️ | 🎞️ ]",
         "🎰 **SLOTS**\n[ 🔄 | 🎞️ | 🎞️ ]\n[ 🎞️ | 🔄 | 🎞️ ]\n[ 🎞️ | 🎞️ | 🔄 ]",
@@ -1176,7 +1162,6 @@ commands.slots = async (message, args) => {
         await new Promise(r => setTimeout(r, 300));
     }
 
-    // Generate final reels
     const reels = [
         [rollSymbol(), rollSymbol(), rollSymbol()],
         [rollSymbol(), rollSymbol(), rollSymbol()],
