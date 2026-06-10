@@ -148,6 +148,17 @@ client.on("messageCreate", async (msg) => {
     const args = msg.content.slice(PREFIX.length).trim().split(/ +/);
     const cmd = args.shift().toLowerCase();
 
+    // ===============================
+    // UNIVERSAL COMMAND EXECUTOR
+    // ===============================
+    if (commands[cmd]) {
+        try {
+            return commands[cmd](msg, args);
+        } catch (err) {
+            console.error(err);
+            return msg.reply("❌ Error running command.");
+        }
+    }
     // -----------------------------
     // PING
     // -----------------------------
@@ -2839,13 +2850,14 @@ commands.uptime = async (message) => {
         .setDescription(`**${hours}h ${minutes}m ${seconds}s**`);
 
     return message.reply({ embeds: [embed] });
-}; // <-- THIS WAS MISSING
+}; // <-- closes uptime ONLY
 
-}); // <-- NOW this correctly closes messageCreate
+}); // <-- closes messageCreate (correct)
 
 // ===============================
 // COMMAND HANDLER (END)
 // ===============================
+
 // ===============================
 // BOT READY MESSAGE
 // ===============================
