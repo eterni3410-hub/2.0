@@ -148,24 +148,18 @@ client.on("messageCreate", async (msg) => {
     const args = msg.content.slice(PREFIX.length).trim().split(/ +/);
     const cmd = args.shift().toLowerCase();
 
-   // UNIVERSAL COMMAND EXECUTOR
-if (commands[cmd]) {
-    try {
-        return commands[cmd](msg, args);
-    } catch (err) {
-        console.error(err);
-        return msg.reply("❌ Error running command.");
+    // UNIVERSAL COMMAND EXECUTOR
+    if (commands[cmd]) {
+        try {
+            return commands[cmd](msg, args);
+        } catch (err) {
+            console.error(err);
+            return msg.reply("❌ Error running command.");
+        }
     }
-}
-});
-
-// ===============================
-// COMMAND HANDLER (END)
-// ===============================
-
 
     // ===============================
-    // HELP COMMAND
+    // HELP COMMAND  (INSIDE HANDLER)
     // ===============================
     if (cmd === "help") {
         const CYAN = 0x0f859d;
@@ -279,8 +273,8 @@ if (commands[cmd]) {
         return;
     }
 
-       // ===============================
-    // PREMIUM ANIMATED SLOTS
+    // ===============================
+    // PREMIUM ANIMATED SLOTS (INSIDE HANDLER)
     // ===============================
     if (cmd === "slots") {
         (async () => {
@@ -348,6 +342,12 @@ if (commands[cmd]) {
 
         })();
     }
+
+}); // <-- THIS IS NOW THE REAL END OF THE HANDLER
+
+// ===============================
+// COMMAND HANDLER (END)
+// ===============================
 
 // ===============================
 // BOSS GENERATOR
