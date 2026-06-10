@@ -2842,7 +2842,10 @@ commands.uptime = async (message) => {
 
     return message.reply({ embeds: [embed] });
 };
-
+}); // <-- THIS closes the event listener
+// ===============================
+// COMMAND HANDLER (END)
+// ===============================
 // ===============================
 // BOT READY MESSAGE
 // ===============================
@@ -2850,7 +2853,6 @@ commands.uptime = async (message) => {
 client.on("ready", () => {
     console.log(`Bot logged in as ${client.user.tag}`);
 });
-
 // ===============================
 // DATA SAVE + LOAD SYSTEM
 // ===============================
