@@ -261,119 +261,195 @@ const spawnThreshold = 15;
 const channelSpawns = {};
 
 // ===============================
-// HELP COMMAND (INSIDE HANDLER)
+// GLOBALS
 // ===============================
-if (cmd === "help") {
-    const CYAN = 0x0f859d;
 
-    const page1 = new EmbedBuilder()
-        .setColor(CYAN)
-        .setTitle("🎮 Game Commands")
-        .setDescription(
-            "**>uno** — Start a UNO match\n" +
-            "**>unoplay** — Play a card\n" +
-            "**>unotake** — Draw a card\n" +
-            "**>hangman** — Start Hangman\n" +
-            "**>guess** — Guess a letter in Hangman\n" +
-            "**>hangmanend** — End Hangman\n"
-        );
+const PREFIX = ">";
+const commands = {};
 
-    const page2 = new EmbedBuilder()
-        .setColor(CYAN)
-        .setTitle("🎰 Gambling & Casino")
-        .setDescription(
-            "**>casino** — Open the PokéChaos Casino Lobby\n" +
-            "**>coinflip** — Flip a coin (all‑in + streaks)\n" +
-            "**>blackjack** — Start blackjack\n" +
-            "**>hit** — Hit in blackjack\n" +
-            "**>stand** — Stand in blackjack\n" +
-            "**>daily** — Claim daily reward\n" +
-            "**>balance** — Check your coins\n" +
-            "**>give** — Give coins to another user\n" +
-            "**>leaderboard** — Top richest players\n"
-        );
+const aiChatEnabled = {};
 
-    const page3 = new EmbedBuilder()
-        .setColor(CYAN)
-        .setTitle("🐉 Pokémon Commands")
-        .setDescription(
-            "**>pokemon** — View your Pokémon\n" +
-            "**>pokedex** — View Pokédex\n" +
-            "**>spawn** — Spawn a Pokémon\n" +
-            "**>catch** — Catch a Pokémon\n" +
-            "**>catchwild** — Catch wild Pokémon\n" +
-            "**>team** — View your team\n" +
-            "**>release** — Release a Pokémon\n" +
-            "**>trade** — Trade with someone\n" +
-            "**>fight** — Battle another player\n" +
-            "**>boss** — Spawn a boss\n" +
-            "**>fightboss** — Fight the boss\n" +
-            "**>gigantamax** — Gigantamax a Pokémon\n" +
-            "**>mega** — Mega evolve\n" +
-            "**>shop** — Pokémon shop\n" +
-            "**>buy** — Buy items\n" +
-            "**>use** — Use an item\n"
-        );
+const economy = {};
+const dailyCooldown = {};
 
-    const page4 = new EmbedBuilder()
-        .setColor(CYAN)
-        .setTitle("🧭 Utility Commands")
-        .setDescription(
-            "**>ping** — Bot latency\n" +
-            "**>uptime** — Bot uptime\n" +
-            "**>afk** — Set AFK status\n" +
-            "**>reminder** — Set a reminder\n" +
-            "**>profile** — View your profile\n" +
-            "**>inventory** — View your items\n"
-        );
+const unoGames = {};
+const hangmanGames = {};
+const hangmanWords = ["apple", "banana", "dragon", "pokemon", "discord", "chaos"];
 
-    const page5 = new EmbedBuilder()
-        .setColor(CYAN)   // <-- FIXED (one dot)
-        .setTitle("🔒 Owner‑Only Commands")
-        .setDescription(
-            "**>ownerspawn** — Spawn a Pokémon\n" +
-            "**>ownercoins** — Give coins\n" +
-            "**>ownerreset** — Reset a user\n" +
-            "**>ownerwipe** — Wipe all data\n"
-        );
+const casinoCooldown = new Map();
+const blackjackGames = new Map();
+const JACKPOT_KEY = "casino_jackpot";
+const bossSpawns = {};
 
-    const pages = [page1, page2, page3, page4, page5];
-    let currentPage = 0;
+let messageCount = 0;
+const spawnThreshold = 15;
 
-    const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId("prev").setLabel("◀️").setStyle(1),
-        new ButtonBuilder().setCustomId("next").setLabel("▶️").setStyle(1)
-    );
+const channelSpawns = {};
 
-    const sent = await msg.reply({
-        embeds: [pages[currentPage]],
-        components: [row]
-    });
 
-    const collector = sent.createMessageComponentCollector({ time: 60000 });
+// ===============================
+// COMMAND HANDLER (START)
+// ===============================
 
-    collector.on("collect", async (i) => {
-        if (i.user.id !== msg.author.id)
-            return i.reply({ content: "This menu isn't for you.", ephemeral: true });
+client.on("messageCreate", async (msg) => {   // <-- MUST BE ASYNC
+    if (!msg.guild) return;
+    if (msg.author.bot) return;
 
-        if (i.customId === "prev") {
-            currentPage = currentPage === 0 ? pages.length - 1 : currentPage - 1;
-        } else {
-            currentPage = currentPage === pages.length - 1 ? 0 : currentPage + 1;
+    // ===============================
+    // MESSAGE COUNTER FOR SPAWNS
+    // ===============================
+    messageCount++;
+    if (messageCount >= spawnThreshold) {
+        messageCount = 0;
+        spawnRandomBoss(msg.channel);
+    }
+
+    // ===============================
+    // AI CHAT MODE
+    // ===============================
+    if (aiChatEnabled[msg.channel.id]) {
+        if (!msg.content.startsWith(PREFIX)) {
+            return runAIChat(msg);
         }
+    }
 
-        await i.update({
+    // ===============================
+    // PREFIX COMMANDS
+    // ===============================
+    if (!msg.content.startsWith(PREFIX)) return;
+
+    const args = msg.content.slice(PREFIX.length).trim().split(/ +/);
+    const cmd = args.shift().toLowerCase();
+
+
+    // ===============================
+    // HELP COMMAND (INSIDE HANDLER)
+    // ===============================
+    if (cmd === "help") {
+        const CYAN = 0x0f859d;
+
+        const page1 = new EmbedBuilder()
+            .setColor(CYAN)
+            .setTitle("🎮 Game Commands")
+            .setDescription(
+                "**>uno** — Start a UNO match\n" +
+                "**>unoplay** — Play a card\n" +
+                "**>unotake** — Draw a card\n" +
+                "**>hangman** — Start Hangman\n" +
+                "**>guess** — Guess a letter in Hangman\n" +
+                "**>hangmanend** — End Hangman\n"
+            );
+
+        const page2 = new EmbedBuilder()
+            .setColor(CYAN)
+            .setTitle("🎰 Gambling & Casino")
+            .setDescription(
+                "**>casino** — Open the PokéChaos Casino Lobby\n" +
+                "**>coinflip** — Flip a coin (all‑in + streaks)\n" +
+                "**>blackjack** — Start blackjack\n" +
+                "**>hit** — Hit in blackjack\n" +
+                "**>stand** — Stand in blackjack\n" +
+                "**>daily** — Claim daily reward\n" +
+                "**>balance** — Check your coins\n" +
+                "**>give** — Give coins to another user\n" +
+                "**>leaderboard** — Top richest players\n"
+            );
+
+        const page3 = new EmbedBuilder()
+            .setColor(CYAN)
+            .setTitle("🐉 Pokémon Commands")
+            .setDescription(
+                "**>pokemon** — View your Pokémon\n" +
+                "**>pokedex** — View Pokédex\n" +
+                "**>spawn** — Spawn a Pokémon\n" +
+                "**>catch** — Catch a Pokémon\n" +
+                "**>catchwild** — Catch wild Pokémon\n" +
+                "**>team** — View your team\n" +
+                "**>release** — Release a Pokémon\n" +
+                "**>trade** — Trade with someone\n" +
+                "**>fight** — Battle another player\n" +
+                "**>boss** — Spawn a boss\n" +
+                "**>fightboss** — Fight the boss\n" +
+                "**>gigantamax** — Gigantamax a Pokémon\n" +
+                "**>mega** — Mega evolve\n" +
+                "**>shop** — Pokémon shop\n" +
+                "**>buy** — Buy items\n" +
+                "**>use** — Use an item\n"
+            );
+
+        const page4 = new EmbedBuilder()
+            .setColor(CYAN)
+            .setTitle("🧭 Utility Commands")
+            .setDescription(
+                "**>ping** — Bot latency\n" +
+                "**>uptime** — Bot uptime\n" +
+                "**>afk** — Set AFK status\n" +
+                "**>reminder** — Set a reminder\n" +
+                "**>profile** — View your profile\n" +
+                "**>inventory** — View your items\n"
+            );
+
+        const page5 = new EmbedBuilder()
+            .setColor(CYAN)
+            .setTitle("🔒 Owner‑Only Commands")
+            .setDescription(
+                "**>ownerspawn** — Spawn a Pokémon\n" +
+                "**>ownercoins** — Give coins\n" +
+                "**>ownerreset** — Reset a user\n" +
+                "**>ownerwipe** — Wipe all data\n"
+            );
+
+        const pages = [page1, page2, page3, page4, page5];
+        let currentPage = 0;
+
+        const row = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId("prev").setLabel("◀️").setStyle(1),
+            new ButtonBuilder().setCustomId("next").setLabel("▶️").setStyle(1)
+        );
+
+        const sent = await msg.reply({
             embeds: [pages[currentPage]],
             components: [row]
         });
-    });
 
-    collector.on("end", () => {
-        sent.edit({ components: [] }).catch(() => {});
-    });
+        const collector = sent.createMessageComponentCollector({ time: 60000 });
 
-    return;
-}
+        collector.on("collect", async (i) => {
+            if (i.user.id !== msg.author.id)
+                return i.reply({ content: "This menu isn't for you.", ephemeral: true });
+
+            if (i.customId === "prev") {
+                currentPage = currentPage === 0 ? pages.length - 1 : currentPage - 1;
+            } else {
+                currentPage = currentPage === pages.length - 1 ? 0 : currentPage + 1;
+            }
+
+            await i.update({
+                embeds: [pages[currentPage]],
+                components: [row]
+            });
+        });
+
+        collector.on("end", () => {
+            sent.edit({ components: [] }).catch(() => {});
+        });
+
+        return;
+    }
+
+
+    // ===============================
+    // UNIVERSAL COMMAND EXECUTOR
+    // ===============================
+    if (commands[cmd]) {
+        try {
+            return commands[cmd](msg, args);
+        } catch (err) {
+            console.error(err);
+            return msg.reply("❌ Error running command.");
+        }
+    }
+});
 
 // ===============================
 // BOSS GENERATOR
