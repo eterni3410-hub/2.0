@@ -261,6 +261,12 @@ const spawnThreshold = 15;
 const channelSpawns = {};
 
 // ===============================
+// REQUIRED DISCORD.JS IMPORTS
+// ===============================
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder } = require("discord.js");
+
+
+// ===============================
 // COMMAND HANDLER (START)
 // ===============================
 
@@ -294,8 +300,9 @@ client.on("messageCreate", async (msg) => {
     const args = msg.content.slice(PREFIX.length).trim().split(/ +/);
     const cmd = args.shift().toLowerCase();
 
+
     // ===============================
-    // HELP COMMAND (INSIDE HANDLER)
+    // HELP COMMAND
     // ===============================
     if (cmd === "help") {
         const CYAN = 0x0f859d;
@@ -408,6 +415,20 @@ client.on("messageCreate", async (msg) => {
 
         return;
     }
+
+
+    // ===============================
+    // UNIVERSAL COMMAND EXECUTOR
+    // ===============================
+    if (commands[cmd]) {
+        try {
+            return commands[cmd](msg, args);
+        } catch (err) {
+            console.error(err);
+            return msg.reply("❌ Error running command.");
+        }
+    }
+});
 
     // ===============================
     // UNIVERSAL COMMAND EXECUTOR
