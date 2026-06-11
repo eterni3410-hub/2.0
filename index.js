@@ -162,7 +162,10 @@ function setStreak(userId, value) {
     writeDB(dbData);
 }
 
-// 🃏 BLACKJACK ENGINE
+// ===============================
+// 🃏 BLACKJACK ENGINE (THE REAL ONE — DO NOT REMOVE)
+// ===============================
+
 const deck = [
     "A♠","2♠","3♠","4♠","5♠","6♠","7♠","8♠","9♠","10♠","J♠","Q♠","K♠",
     "A♥","2♥","3♥","4♥","5♥","6♥","7♥","8♥","9♥","10♥","J♥","Q♥","K♥",
@@ -278,6 +281,8 @@ client.on("messageCreate", async (msg) => {
             return msg.reply("❌ Error running command.");
         }
     }
+   
+}); // <-- THIS closes the handler properly
 
 // ===============================
 // HELP COMMAND (INSIDE HANDLER)
@@ -394,7 +399,6 @@ if (cmd === "help") {
     return;
 } // <-- closes the help command IF block
 
-}); // <-- THIS closes the handler properly
 // ===============================
 // COMMAND HANDLER (END)
 // ===============================
@@ -482,15 +486,21 @@ commands.fightboss = async (message) => {
 };
 
 // ===============================
-// HELPER FUNCTIONS
+// HELPER FUNCTIONS (NON‑CASINO)
 // ===============================
 
 // ⭐ ALL OLD ECONOMY CODE REMOVED — it was breaking bossSpawns
 
+// ===============================
+// HANGMAN FORMATTER
+// ===============================
 function formatHangmanWord(word, guessed) {
     return [...word].map(c => guessed.includes(c) ? c : "-").join("");
 }
 
+// ===============================
+// UNO SYSTEM
+// ===============================
 const unoDeck = [
     "R1","R2","R3","R4","R5","R6","R7","R8","R9",
     "G1","G2","G3","G4","G5","G6","G7","G8","G9",
@@ -502,33 +512,13 @@ function drawUnoCard() {
     return unoDeck[Math.floor(Math.random() * unoDeck.length)];
 }
 
-function drawCard() {
-    const cards = ["A","2","3","4","5","6","7","8","9","10","J","Q","K"];
-    return cards[Math.floor(Math.random() * cards.length)];
-}
+// ===============================
+// ❌ REMOVED: duplicate drawCard()
+// ❌ REMOVED: duplicate calculateHand()
+// These were overwriting the casino blackjack engine.
+// ===============================
 
-function calculateHand(hand) {
-    let total = 0;
-    let aces = 0;
-
-    for (const card of hand) {
-        if (card === "A") {
-            aces++;
-            total += 11;
-        } else if (["J","Q","K"].includes(card)) {
-            total += 10;
-        } else {
-            total += parseInt(card);
-        }
-    }
-
-    while (total > 21 && aces > 0) {
-        total -= 10;
-        aces--;
-    }
-
-    return total;
-}
+// This block is now clean and safe.
 
 // ===============================
 // MODERATION COMMANDS
@@ -1032,23 +1022,28 @@ commands.hangmanend = async (message) => {
 };
 
 // ===============================
-// UNIFIED ECONOMY SYSTEM (QuickDB v9)
+// UNIFIED ECONOMY SYSTEM (dbData JSON)
 // ===============================
 
-async function getCoins(userId) {
-    const coins = await db.get(`coins_${userId}`);
-    return coins ?? 0; // start at 0, not 100
+// Ensure coins object exists
+if (!dbData.coins) dbData.coins = {};
+writeDB(dbData);
+
+function getCoins(userId) {
+    return dbData.coins[userId] || 0;
 }
 
-async function addCoins(userId, amount) {
-    const current = await getCoins(userId);
-    await db.set(`coins_${userId}`, current + amount);
+function addCoins(userId, amount) {
+    const current = getCoins(userId);
+    dbData.coins[userId] = current + amount;
+    writeDB(dbData);
 }
 
-async function removeCoins(userId, amount) {
-    const current = await getCoins(userId);
+function removeCoins(userId, amount) {
+    const current = getCoins(userId);
     const newAmount = Math.max(0, current - amount);
-    await db.set(`coins_${userId}`, newAmount);
+    dbData.coins[userId] = newAmount;
+    writeDB(dbData);
 }
 
 // ===============================
@@ -1095,16 +1090,17 @@ commands.casino = async (message) => {
 
     const sent = await loading.edit({ content: "", embeds: [embed], components: [row] });
 
+    // FIX: collector MUST be on the message returned by edit()
     const collector = sent.createMessageComponentCollector({ time: 60000 });
 
     collector.on("collect", async (i) => {
         if (i.user.id !== message.author.id)
             return i.reply({ content: "This casino menu isn't for you.", ephemeral: true });
 
-        // FIX: close interaction cleanly
+        // FIX: clean interaction
         await i.deferUpdate();
 
-        // FIX: run commands EXACTLY like typing them manually
+        // FIX: run commands exactly like typing them
         if (i.customId === "casino_slots") {
             return commands.slots(message, []);
         }
