@@ -260,13 +260,35 @@ const spawnThreshold = 15;
 
 const channelSpawns = {};
 
-/// ===============================
+// ===============================
 // COMMAND HANDLER (START)
 // ===============================
 
 client.on("messageCreate", async (msg) => {
     if (!msg.guild) return;
     if (msg.author.bot) return;
+
+    // ===============================
+    // MESSAGE COUNTER FOR SPAWNS
+    // ===============================
+    messageCount++;
+    if (messageCount >= spawnThreshold) {
+        messageCount = 0;
+        spawnRandomBoss(msg.channel);
+    }
+
+    // ===============================
+    // AI CHAT MODE
+    // ===============================
+    if (aiChatEnabled[msg.channel.id]) {
+        if (!msg.content.startsWith(PREFIX)) {
+            return runAIChat(msg);
+        }
+    }
+
+    // ===============================
+    // PREFIX COMMANDS
+    // ===============================
     if (!msg.content.startsWith(PREFIX)) return;
 
     const args = msg.content.slice(PREFIX.length).trim().split(/ +/);
@@ -281,8 +303,7 @@ client.on("messageCreate", async (msg) => {
             return msg.reply("❌ Error running command.");
         }
     }
-   
-}); // <-- THIS closes the handler properly
+});
 
 // ===============================
 // HELP COMMAND (INSIDE HANDLER)
