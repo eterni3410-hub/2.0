@@ -261,37 +261,10 @@ const spawnThreshold = 15;
 const channelSpawns = {};
 
 // ===============================
-// GLOBALS
-// ===============================
-
-const PREFIX = ">";
-const commands = {};
-
-const aiChatEnabled = {};
-
-const economy = {};
-const dailyCooldown = {};
-
-const unoGames = {};
-const hangmanGames = {};
-const hangmanWords = ["apple", "banana", "dragon", "pokemon", "discord", "chaos"];
-
-const casinoCooldown = new Map();
-const blackjackGames = new Map();
-const JACKPOT_KEY = "casino_jackpot";
-const bossSpawns = {};
-
-let messageCount = 0;
-const spawnThreshold = 15;
-
-const channelSpawns = {};
-
-
-// ===============================
 // COMMAND HANDLER (START)
 // ===============================
 
-client.on("messageCreate", async (msg) => {   // <-- MUST BE ASYNC
+client.on("messageCreate", async (msg) => {
     if (!msg.guild) return;
     if (msg.author.bot) return;
 
@@ -320,7 +293,6 @@ client.on("messageCreate", async (msg) => {   // <-- MUST BE ASYNC
 
     const args = msg.content.slice(PREFIX.length).trim().split(/ +/);
     const cmd = args.shift().toLowerCase();
-
 
     // ===============================
     // HELP COMMAND (INSIDE HANDLER)
@@ -436,7 +408,6 @@ client.on("messageCreate", async (msg) => {   // <-- MUST BE ASYNC
 
         return;
     }
-
 
     // ===============================
     // UNIVERSAL COMMAND EXECUTOR
