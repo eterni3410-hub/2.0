@@ -94,9 +94,6 @@ if (dbData.jackpot === undefined) dbData.jackpot = 0;
 if (!dbData.streaks) dbData.streaks = {};
 writeDB(dbData);
 
-// Cooldown map
-const casinoCooldown = new Map();
-
 // ⏳ 5‑second cooldown
 function canUseCasino(userId) {
     const now = Date.now();
