@@ -26,9 +26,6 @@ const path = require("path");
 // DATA
 // ===============================
 
-const { QuickDB } = require("quick.db");
-const db = new QuickDB({ filePath: "./database.sqlite" });
-
 async function getCoins(userId) {
     return (await db.get(`coins_${userId}`)) || 0;
 }
