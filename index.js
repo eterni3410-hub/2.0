@@ -23,24 +23,46 @@ const fs = require("fs");
 const path = require("path");
 
 // ===============================
-// DATA
+// SIMPLE JSON DATABASE (chaosdata.json)
 // ===============================
 
-async function getCoins(userId) {
-    return (await db.get(`coins_${userId}`)) || 0;
+const DB_PATH = path.join(__dirname, "chaosdata.json");
+
+if (!fs.existsSync(DB_PATH)) {
+    fs.writeFileSync(DB_PATH, JSON.stringify({ coins: {}, jackpot: 0, streaks: {} }, null, 2));
 }
 
-async function addCoins(userId, amount) {
-    await db.add(`coins_${userId}`, amount);
-    return await getCoins(userId);
+function readDB() {
+    try {
+        return JSON.parse(fs.readFileSync(DB_PATH, "utf8"));
+    } catch {
+        return { coins: {}, jackpot: 0, streaks: {} };
+    }
 }
 
-async function removeCoins(userId, amount) {
-    await db.sub(`coins_${userId}`, amount);
-    return await getCoins(userId);
+function writeDB(data) {
+    fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
 }
 
-module.exports = { getCoins, addCoins, removeCoins };
+let dbData = readDB();
+
+// ===============================
+// ECONOMY FUNCTIONS
+// ===============================
+
+function getCoins(userId) {
+    return dbData.coins[userId] || 0;
+}
+
+function addCoins(userId, amount) {
+    dbData.coins[userId] = getCoins(userId) + amount;
+    writeDB(dbData);
+}
+
+function removeCoins(userId, amount) {
+    dbData.coins[userId] = Math.max(0, getCoins(userId) - amount);
+    writeDB(dbData);
+}
 
 // ===============================
 // USER DATA STRUCTURES
@@ -63,26 +85,6 @@ function chaosEmbed(title, description) {
         .setDescription(description);
 }
 
-// GET COINS
-async function getCoins(userId) {
-    const coins = await db.get(`coins_${userId}`);
-    return coins || 0;
-}
-
-// ADD COINS
-async function addCoins(userId, amount) {
-    await db.add(`coins_${userId}`, amount);
-    return await getCoins(userId);
-}
-
-// REMOVE COINS
-async function removeCoins(userId, amount) {
-    await db.sub(`coins_${userId}`, amount);
-    return await getCoins(userId);
-}
-
-module.exports = { getCoins, addCoins, removeCoins };
-
 // ===============================
 // CASINO HELPERS — CLASSIC SYMBOLS
 // ===============================
@@ -91,6 +93,9 @@ module.exports = { getCoins, addCoins, removeCoins };
 if (dbData.jackpot === undefined) dbData.jackpot = 0;
 if (!dbData.streaks) dbData.streaks = {};
 writeDB(dbData);
+
+// Cooldown map
+const casinoCooldown = new Map();
 
 // ⏳ 5‑second cooldown
 function canUseCasino(userId) {
