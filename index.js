@@ -63,9 +63,6 @@ function chaosEmbed(title, description) {
         .setDescription(description);
 }
 
-const { QuickDB } = require("quick.db");
-const db = new QuickDB({ filePath: "./database.sqlite" });
-
 // GET COINS
 async function getCoins(userId) {
     const coins = await db.get(`coins_${userId}`);
@@ -1368,9 +1365,6 @@ commands.stand = async (message) => {
 // ===============================
 // POKÉMON SYSTEM (FULL POKÉDEX VIA POKÉAPI)
 // ===============================
-
-const { QuickDB } = require("quick.db");
-const db = new QuickDB({ filePath: "./database.sqlite" });
 
 const pokemonDataCache = {};
 const pokemonStatsCache = {};
