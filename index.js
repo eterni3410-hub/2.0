@@ -1102,8 +1102,6 @@ commands.casino = async (message) => {
     new ButtonBuilder().setCustomId("casino_roulette").setLabel("🎡 Roulette").setStyle(2)
 );
 
-    );
-
     const sent = await loading.edit({ content: "", embeds: [embed], components: [row] });
 
     // FIX: collector MUST be on the message returned by edit()
