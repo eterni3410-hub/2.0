@@ -1096,9 +1096,12 @@ commands.casino = async (message) => {
 
     // Buttons
     const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId("casino_slots").setLabel("🎰 Slots").setStyle(1),
-        new ButtonBuilder().setCustomId("casino_coinflip").setLabel("🪙 Coinflip").setStyle(3),
-        new ButtonBuilder().setCustomId("casino_blackjack").setLabel("🃏 Blackjack").setStyle(4)
+    new ButtonBuilder().setCustomId("casino_slots").setLabel("🎰 Slots").setStyle(1),
+    new ButtonBuilder().setCustomId("casino_coinflip").setLabel("🪙 Coinflip").setStyle(3),
+    new ButtonBuilder().setCustomId("casino_blackjack").setLabel("🃏 Blackjack").setStyle(4),
+    new ButtonBuilder().setCustomId("casino_roulette").setLabel("🎡 Roulette").setStyle(2)
+);
+
     );
 
     const sent = await loading.edit({ content: "", embeds: [embed], components: [row] });
@@ -1125,11 +1128,236 @@ commands.casino = async (message) => {
         if (i.customId === "casino_blackjack") {
             return commands.blackjack(message, ["50"]);
         }
+       if (i.customId === "casino_roulette") {
+    return commands.rouletteGuide(message);
+}
+
     });
 
     collector.on("end", () => {
         sent.edit({ components: [] }).catch(() => {});
     });
+};
+
+// ===============================
+// ROULETTE GUIDE (NO BANNER, CLEAN POKÉCHAOS STYLE)
+// ===============================
+
+commands.rouletteGuide = async (message) => {
+    const { EmbedBuilder, ActionRowBuilder, ButtonBuilder } = require("discord.js");
+
+    const embed = new EmbedBuilder()
+        .setColor(0x0f859d)
+        .setTitle("🎡 PokéChaos Roulette — How to Play")
+        .setDescription(
+            "Welcome to **PokéChaos Roulette**!\n" +
+            "Here’s how to place every type of bet.\n\n" +
+
+            "🔴 **Red / Black** — *2× payout*\n" +
+            "Example: `>roulette red 500`\n\n" +
+
+            "⚫ **Odd / Even** — *2× payout*\n" +
+            "Example: `>roulette odd 1000`\n\n" +
+
+            "🔼 **High / Low** — *2× payout*\n" +
+            "Low = 1–18, High = 19–36\n" +
+            "Example: `>roulette high 750`\n\n" +
+
+            "📦 **Dozens** — *3× payout*\n" +
+            "`1` = 1–12, `2` = 13–24, `3` = 25–36\n" +
+            "Example: `>roulette dozen 2 500`\n\n" +
+
+            "📊 **Columns** — *3× payout*\n" +
+            "Column 1, 2, or 3\n" +
+            "Example: `>roulette column 3 500`\n\n" +
+
+            "🎯 **Straight Number** — *35× payout*\n" +
+            "Pick any number 0–36\n" +
+            "Example: `>roulette 17 200`\n\n" +
+
+            "➗ **Split Bet** — *17× payout*\n" +
+            "Bet on 2 touching numbers\n" +
+            "Example: `>roulette split 17 20 200`\n\n" +
+
+            "📏 **Street Bet** — *11× payout*\n" +
+            "3 numbers in a row\n" +
+            "Example: `>roulette street 16 17 18 200`\n\n" +
+
+            "🟥 **Corner Bet** — *8× payout*\n" +
+            "4 numbers that meet at one corner:\n" +
+            "```\n17 18\n20 21\n```\n" +
+            "Example: `>roulette corner 17 18 20 21 200`\n\n" +
+
+            "Press **Start Roulette** to begin!"
+        );
+
+    const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId("roulette_start")
+            .setLabel("🎡 Start Roulette")
+            .setStyle(1)
+    );
+
+    return message.reply({ embeds: [embed], components: [row] });
+};
+// ===============================
+// HYPER ANIMATED ROULETTE
+// ===============================
+
+commands.roulette = async (message, args) => {
+    const userId = message.author.id;
+
+    if (!canUseCasino(userId)) {
+        return message.reply("⏳ Slow down! Wait a few seconds before spinning again.");
+    }
+
+    // ===============================
+    // PARSE BET TYPE
+    // ===============================
+    if (!args[0]) {
+        return message.reply("🎡 Usage example: `>roulette red 500`");
+    }
+
+    const betType = args[0].toLowerCase();
+    const numbers = [];
+    let bet = 0;
+
+    // Extract numbers from args
+    for (const a of args) {
+        if (!isNaN(a)) numbers.push(parseInt(a));
+    }
+
+    // Last number = bet amount
+    bet = numbers.pop() || 10;
+
+    if (bet <= 0) return message.reply("🎡 Bet must be positive.");
+    if (bet > 200000) return message.reply("🎡 Max bet is 200,000 coins.");
+
+    const coins = getCoins(userId);
+    if (coins < bet) return message.reply("💸 Not enough coins.");
+
+    removeCoins(userId, bet);
+
+    // ===============================
+    // ROULETTE WHEEL NUMBERS
+    // ===============================
+    const wheel = [
+        { n: 0, color: "green" },
+        { n: 1, color: "red" }, { n: 2, color: "black" },
+        { n: 3, color: "red" }, { n: 4, color: "black" },
+        { n: 5, color: "red" }, { n: 6, color: "black" },
+        { n: 7, color: "red" }, { n: 8, color: "black" },
+        { n: 9, color: "red" }, { n: 10, color: "black" },
+        { n: 11, color: "black" }, { n: 12, color: "red" },
+        { n: 13, color: "black" }, { n: 14, color: "red" },
+        { n: 15, color: "black" }, { n: 16, color: "red" },
+        { n: 17, color: "black" }, { n: 18, color: "red" },
+        { n: 19, color: "red" }, { n: 20, color: "black" },
+        { n: 21, color: "red" }, { n: 22, color: "black" },
+        { n: 23, color: "red" }, { n: 24, color: "black" },
+        { n: 25, color: "red" }, { n: 26, color: "black" },
+        { n: 27, color: "red" }, { n: 28, color: "black" },
+        { n: 29, color: "black" }, { n: 30, color: "red" },
+        { n: 31, color: "black" }, { n: 32, color: "red" },
+        { n: 33, color: "black" }, { n: 34, color: "red" },
+        { n: 35, color: "black" }, { n: 36, color: "red" }
+    ];
+
+    // ===============================
+    // SPIN ANIMATION
+    // ===============================
+    const msg = await message.reply("🎡 **Spinning the roulette wheel...**");
+    await new Promise(r => setTimeout(r, 400));
+    await msg.edit("🎞️ Wheel spinning faster...");
+    await new Promise(r => setTimeout(r, 400));
+    await msg.edit("💫 Ball bouncing...");
+    await new Promise(r => setTimeout(r, 400));
+
+    const result = wheel[Math.floor(Math.random() * wheel.length)];
+    const number = result.n;
+    const color = result.color;
+
+    // ===============================
+    // DETERMINE WIN
+    // ===============================
+    let win = 0;
+
+    function isDozen(n, d) {
+        if (d === 1) return n >= 1 && n <= 12;
+        if (d === 2) return n >= 13 && n <= 24;
+        if (d === 3) return n >= 25 && n <= 36;
+        return false;
+    }
+
+    function isColumn(n, c) {
+        return (n - 1) % 3 === (c - 1);
+    }
+
+    // Bet logic
+    switch (betType) {
+        case "red":
+        case "black":
+            if (color === betType) win = bet * 2;
+            break;
+
+        case "odd":
+            if (number !== 0 && number % 2 === 1) win = bet * 2;
+            break;
+
+        case "even":
+            if (number !== 0 && number % 2 === 0) win = bet * 2;
+            break;
+
+        case "high":
+            if (number >= 19 && number <= 36) win = bet * 2;
+            break;
+
+        case "low":
+            if (number >= 1 && number <= 18) win = bet * 2;
+            break;
+
+        case "dozen":
+            if (isDozen(number, numbers[0])) win = bet * 3;
+            break;
+
+        case "column":
+            if (isColumn(number, numbers[0])) win = bet * 3;
+            break;
+
+        case "split":
+            if (numbers.includes(number)) win = bet * 17;
+            break;
+
+        case "street":
+            if (numbers.includes(number)) win = bet * 11;
+            break;
+
+        case "corner":
+            if (numbers.includes(number)) win = bet * 8;
+            break;
+
+        default:
+            // Straight number
+            if (!isNaN(betType)) {
+                if (parseInt(betType) === number) win = bet * 35;
+            }
+            break;
+    }
+
+    // ===============================
+    // PAYOUT
+    // ===============================
+    let text = `🎡 **Roulette** — Bet: ${bet} coins\n\n`;
+    text += `The wheel lands on **${number} (${color.toUpperCase()})**!\n\n`;
+
+    if (win > 0) {
+        addCoins(userId, win);
+        text += `✨ **WIN!** You earned **${win} coins**!`;
+    } else {
+        text += `💀 **LOSE!** Better luck next time.`;
+    }
+
+    await msg.edit(text);
 };
 
 // ===============================
