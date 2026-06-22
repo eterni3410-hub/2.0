@@ -26,6 +26,9 @@ const path = require("path");
 // SIMPLE JSON DATABASE (chaosdata.json)
 // ===============================
 
+const { QuickDB } = require("quick.db");
+const db = new QuickDB({ filePath: "./database.sqlite" });
+
 const DB_PATH = path.join(__dirname, "chaosdata.json");
 
 if (!fs.existsSync(DB_PATH)) {
@@ -1041,9 +1044,6 @@ commands.hangmanend = async (message) => {
 // ===============================
 // UNIFIED ECONOMY SYSTEM (dbData JSON)
 // ===============================
-
-const { QuickDB } = require("quick.db");
-const db = new QuickDB({ filePath: "./database.sqlite" });
 
 async function getCoins(userId) {
     return (await db.get(`coins_${userId}`)) || 0;
