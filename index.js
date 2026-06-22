@@ -23,29 +23,27 @@ const fs = require("fs");
 const path = require("path");
 
 // ===============================
-// SIMPLE JSON DATABASE (chaosdata.json)
+// DATA
 // ===============================
 
-const DB_PATH = path.join(__dirname, "chaosdata.json");
+const { QuickDB } = require("quick.db");
+const db = new QuickDB({ filePath: "./database.sqlite" });
 
-if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify({ coins: {} }, null, 2));
+async function getCoins(userId) {
+    return (await db.get(`coins_${userId}`)) || 0;
 }
 
-function readDB() {
-    try {
-        const raw = fs.readFileSync(DB_PATH, "utf8");
-        return JSON.parse(raw);
-    } catch {
-        return { coins: {} };
-    }
+async function addCoins(userId, amount) {
+    await db.add(`coins_${userId}`, amount);
+    return await getCoins(userId);
 }
 
-function writeDB(data) {
-    fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
+async function removeCoins(userId, amount) {
+    await db.sub(`coins_${userId}`, amount);
+    return await getCoins(userId);
 }
 
-let dbData = readDB();
+module.exports = { getCoins, addCoins, removeCoins };
 
 // ===============================
 // USER DATA STRUCTURES
@@ -68,25 +66,28 @@ function chaosEmbed(title, description) {
         .setDescription(description);
 }
 
-// ===============================
-// UNIFIED ECONOMY SYSTEM
-// ===============================
+const { QuickDB } = require("quick.db");
+const db = new QuickDB({ filePath: "./database.sqlite" });
 
-function getCoins(userId) {
-    return dbData.coins[userId] || 0;
+// GET COINS
+async function getCoins(userId) {
+    const coins = await db.get(`coins_${userId}`);
+    return coins || 0;
 }
 
-function addCoins(userId, amount) {
-    const current = getCoins(userId);
-    dbData.coins[userId] = current + amount;
-    writeDB(dbData);
+// ADD COINS
+async function addCoins(userId, amount) {
+    await db.add(`coins_${userId}`, amount);
+    return await getCoins(userId);
 }
 
-function removeCoins(userId, amount) {
-    const current = getCoins(userId);
-    dbData.coins[userId] = Math.max(0, current - amount);
-    writeDB(dbData);
+// REMOVE COINS
+async function removeCoins(userId, amount) {
+    await db.sub(`coins_${userId}`, amount);
+    return await getCoins(userId);
 }
+
+module.exports = { getCoins, addCoins, removeCoins };
 
 // ===============================
 // CASINO HELPERS — CLASSIC SYMBOLS
@@ -430,7 +431,6 @@ client.on("messageCreate", async (msg) => {
 
 function generateBoss() {
     const bosses = [
-        { name: "Mega Charizard X", hp: 600, sprite: "https://img.pokemondb.net/artwork/large/charizard-mega-x.jpg" },
         { name: "Rayquaza", hp: 750, sprite: "https://img.pokemondb.net/artwork/large/rayquaza.jpg" },
         { name: "Giratina (Origin)", hp: 800, sprite: "https://img.pokemondb.net/artwork/large/giratina-origin.jpg" },
         { name: "Zacian (Crowned)", hp: 850, sprite: "https://img.pokemondb.net/artwork/large/zacian-crowned.jpg" }
@@ -1046,26 +1046,24 @@ commands.hangmanend = async (message) => {
 // UNIFIED ECONOMY SYSTEM (dbData JSON)
 // ===============================
 
-// Ensure coins object exists
-if (!dbData.coins) dbData.coins = {};
-writeDB(dbData);
+const { QuickDB } = require("quick.db");
+const db = new QuickDB({ filePath: "./database.sqlite" });
 
-function getCoins(userId) {
-    return dbData.coins[userId] || 0;
+async function getCoins(userId) {
+    return (await db.get(`coins_${userId}`)) || 0;
 }
 
-function addCoins(userId, amount) {
-    const current = getCoins(userId);
-    dbData.coins[userId] = current + amount;
-    writeDB(dbData);
+async function addCoins(userId, amount) {
+    await db.add(`coins_${userId}`, amount);
+    return await getCoins(userId);
 }
 
-function removeCoins(userId, amount) {
-    const current = getCoins(userId);
-    const newAmount = Math.max(0, current - amount);
-    dbData.coins[userId] = newAmount;
-    writeDB(dbData);
+async function removeCoins(userId, amount) {
+    await db.sub(`coins_${userId}`, amount);
+    return await getCoins(userId);
 }
+
+module.exports = { getCoins, addCoins, removeCoins };
 
 // ===============================
 // POKÉCHAOS CASINO LOBBY (HYPER ANIMATED)
@@ -1374,9 +1372,25 @@ commands.stand = async (message) => {
 // POKÉMON SYSTEM (FULL POKÉDEX VIA POKÉAPI)
 // ===============================
 
+const { QuickDB } = require("quick.db");
+const db = new QuickDB({ filePath: "./database.sqlite" });
+
 const pokemonDataCache = {};
 const pokemonStatsCache = {};
 let allPokemonNames = [];
+
+// ===============================
+// POKÉMON STORAGE (QuickDB)
+// ===============================
+
+async function getUserPokemon(userId) {
+    return (await db.get(`pokemon_${userId}`)) || [];
+}
+
+async function saveUserPokemon(userId, list) {
+    await db.set(`pokemon_${userId}`, list);
+    return list;
+}
 
 // Load ALL Pokémon names from PokéAPI for random spawns
 async function loadAllPokemon() {
@@ -1419,7 +1433,7 @@ async function getPokemonData(name) {
             speed: data.stats[5].base_stat
         };
 
-        const result = { name, types, abilities, moves, sprite, stats };
+        const result = { name: data.name, types, abilities, moves, sprite, stats };
         pokemonDataCache[name] = result;
         pokemonStatsCache[name] = stats;
 
@@ -1523,10 +1537,11 @@ commands.ownerspawn = async (message, args) => {
     }
 
     const typeText = data.types.map(t => `\`${t}\``).join(", ");
+    const displayName = data.name.charAt(0).toUpperCase() + data.name.slice(1);
 
     const embed = chaosEmbed(
         "✨ Owner Spawned Pokémon!",
-        `A wild **${data.name}** has appeared!\nTypes: ${typeText}`
+        `A wild **${displayName}** has appeared!\nTypes: ${typeText}`
     );
 
     if (data.sprite) embed.setThumbnail(data.sprite);
@@ -1585,11 +1600,9 @@ commands.catchwild = async (message) => {
         });
     }
 
-    if (!userPokemon[message.author.id]) {
-        userPokemon[message.author.id] = [];
-    }
-
-    userPokemon[message.author.id].push(data.name.toLowerCase());
+    const team = await getUserPokemon(message.author.id);
+    team.push(data.name.toLowerCase());
+    await saveUserPokemon(message.author.id, team);
 
     const typeText = data.types.map(t => `\`${t}\``).join(", ");
 
@@ -1605,7 +1618,7 @@ commands.catchwild = async (message) => {
 
 // Show user's Pokémon team (names, with PokéAPI lookup per slot)
 commands.team = async (message) => {
-    const team = userPokemon[message.author.id];
+    const team = await getUserPokemon(message.author.id);
 
     if (!team || team.length === 0) {
         return message.reply({
@@ -1636,14 +1649,17 @@ commands.team = async (message) => {
 commands.release = async (message, args) => {
     const index = parseInt(args[0]) - 1;
 
-    if (!userPokemon[message.author.id] || !userPokemon[message.author.id][index]) {
+    const team = await getUserPokemon(message.author.id);
+
+    if (!team || !team[index]) {
         return message.reply({
             embeds: [chaosEmbed("❌ Invalid Slot", "Choose a valid Pokémon number.")]
         });
     }
 
-    const released = userPokemon[message.author.id][index];
-    userPokemon[message.author.id].splice(index, 1);
+    const released = team[index];
+    team.splice(index, 1);
+    await saveUserPokemon(message.author.id, team);
 
     return message.reply({
         embeds: [
@@ -1663,20 +1679,22 @@ commands.trade = async (message, args) => {
         });
     }
 
-    if (!userPokemon[message.author.id] || !userPokemon[message.author.id][index]) {
+    const yourTeam = await getUserPokemon(message.author.id);
+
+    if (!yourTeam || !yourTeam[index]) {
         return message.reply({
             embeds: [chaosEmbed("❌ Invalid Slot", "Choose a valid Pokémon number.")]
         });
     }
 
-    const pokemon = userPokemon[message.author.id][index];
+    const pokemon = yourTeam[index];
 
-    if (!userPokemon[target.id]) {
-        userPokemon[target.id] = [];
-    }
+    const theirTeam = await getUserPokemon(target.id);
+    theirTeam.push(pokemon);
+    await saveUserPokemon(target.id, theirTeam);
 
-    userPokemon[target.id].push(pokemon);
-    userPokemon[message.author.id].splice(index, 1);
+    yourTeam.splice(index, 1);
+    await saveUserPokemon(message.author.id, yourTeam);
 
     return message.reply({
         embeds: [
@@ -1720,7 +1738,7 @@ commands.ownerspawn = async (message, args) => {
 
     // Save active spawn for >catch
     global.activeSpawn = {
-        name: data.name.toLowerCase(),   // <-- FIXED: saves actual Pokémon name, not number
+        name: data.name.toLowerCase(),   // always actual Pokémon name
         channel: message.channel.id
     };
 
@@ -1749,7 +1767,7 @@ commands.fight = async (message) => {
         });
     }
 
-    const userTeam = userPokemon[message.author.id];
+    const userTeam = await getUserPokemon(message.author.id);
     if (!userTeam || userTeam.length === 0) {
         return message.reply({
             embeds: [chaosEmbed("❌ No Pokémon", "You need at least one Pokémon to fight.")]
@@ -1774,36 +1792,36 @@ commands.fight = async (message) => {
     await message.reply({ embeds: [startEmbed] });
 
     // ⚔️ Battle Result
-const userPower = chosenStats.atk + Math.floor(Math.random() * 20);
-const wildPower = wildStats.atk + Math.floor(Math.random() * 20);
+    const userPower = chosenStats.atk + Math.floor(Math.random() * 20);
+    const wildPower = wildStats.atk + Math.floor(Math.random() * 20);
 
-const result = userPower >= wildPower
-    ? `🎉 **You won!**\nYour **${chosen}** defeated the wild **${wild}**!`
-    : `💀 **You lost...**\nThe wild **${wild}** overpowered your **${chosen}**.`;
+    const result = userPower >= wildPower
+        ? `🎉 **You won!**\nYour **${chosen}** defeated the wild **${wild}**!`
+        : `💀 **You lost...**\nThe wild **${wild}** overpowered your **${chosen}**.`;
 
-// 🏆 Victory Banner
-if (userPower >= wildPower) {
-    const victoryEmbed = new EmbedBuilder()
-        .setColor(0x0f859d)
-        .setTitle("🏆 VICTORY!")
-        .setImage("https://copilot.microsoft.com/th/id/BCO.484f1cc6-ab7c-4161-81e9-89921d2b6a50.png");
+    // 🏆 Victory Banner
+    if (userPower >= wildPower) {
+        const victoryEmbed = new EmbedBuilder()
+            .setColor(0x0f859d)
+            .setTitle("🏆 VICTORY!")
+            .setImage("https://copilot.microsoft.com/th/id/BCO.484f1cc6-ab7c-4161-81e9-89921d2b6a50.png");
 
-    await message.channel.send({ embeds: [victoryEmbed] });
-}
+        await message.channel.send({ embeds: [victoryEmbed] });
+    }
 
-// 💀 Defeat Banner
-else {
-    const defeatEmbed = new EmbedBuilder()
-        .setColor(0x0f859d)
-        .setTitle("💀 DEFEAT...")
-        .setImage("https://cdn.discordapp.com/attachments/1506335068312965150/1513175785513553992/ChatGPT_Image_Jun_7_2026_09_40_11_AM.png?ex=6a26c644&is=6a2574c4&hm=b18df6d27e63c62e05c0ca4e3c6e367e47da5bdf3e84855e3b63f4c25790fc72");
+    // 💀 Defeat Banner
+    else {
+        const defeatEmbed = new EmbedBuilder()
+            .setColor(0x0f859d)
+            .setTitle("💀 DEFEAT...")
+            .setImage("https://cdn.discordapp.com/attachments/1506335068312965150/1513175785513553992/ChatGPT_Image_Jun_7_2026_09_40_11_AM.png?ex=6a26c644&is=6a2574c4&hm=b18df6d27e63c62e05c0ca4e3c6e367e47da5bdf3e84855e3b63f4c25790fc72");
 
-    await message.channel.send({ embeds: [defeatEmbed] });
-}
+        await message.channel.send({ embeds: [defeatEmbed] });
+    }
 
-return message.channel.send({
-    embeds: [chaosEmbed("⚔️ Battle Result", result)]
-});
+    return message.channel.send({
+        embeds: [chaosEmbed("⚔️ Battle Result", result)]
+    });
 };
 
 commands.fightboss = async (message) => {
@@ -1821,7 +1839,7 @@ commands.fightboss = async (message) => {
     }
 
     const boss = global.activeBoss;
-    const userTeam = userPokemon[message.author.id];
+    const userTeam = await getUserPokemon(message.author.id);
 
     if (!userTeam || userTeam.length === 0) {
         return message.reply({
@@ -1872,6 +1890,7 @@ commands.fightboss = async (message) => {
         ]
     });
 };
+
 // ===============================
 // PLAYER DUEL SYSTEM (Pokétwo Style)
 // ===============================
@@ -1891,8 +1910,8 @@ commands.fight = async (message, args) => {
         });
     }
 
-    const yourTeam = userPokemon[message.author.id];
-    const theirTeam = userPokemon[target.id];
+    const yourTeam = await getUserPokemon(message.author.id);
+    const theirTeam = await getUserPokemon(target.id);
 
     if (!yourTeam || yourTeam.length === 0) {
         return message.reply({
