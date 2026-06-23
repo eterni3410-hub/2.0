@@ -637,91 +637,6 @@ commands.clear = async (message, args) => {
         message.reply({ embeds: [chaosEmbed("⚠️ Failed", "Could not delete messages.")] });
     }
 };
-// ===============================
-// OWNER SPAWN SYSTEM
-// ===============================
-
-// Simple data file for saving spawned Pokémon
-const DATA_PATH = path.join(__dirname, "pokedata.json");
-
-function loadData() {
-    try {
-        const raw = fs.readFileSync(DATA_PATH, "utf8");
-        return JSON.parse(raw);
-    } catch {
-        return { userPokemon: {} };
-    }
-}
-
-function saveData(data) {
-    fs.writeFileSync(DATA_PATH, JSON.stringify(data, null, 2), "utf8");
-}
-
-let persistentData = loadData();
-if (!persistentData.userPokemon) persistentData.userPokemon = {};
-const savedUserPokemon = persistentData.userPokemon;
-
-// ===============================
-// OWNERSPAWN COMMAND
-// ===============================
-
-commands.ownerspawn = async (message, args) => {
-    // Only bot owner can use this
-    const ownerId = "YOUR_OWNER_ID_HERE";
-    if (message.author.id !== ownerId) {
-        return message.reply({
-            embeds: [chaosEmbed("❌ No Access", "Only the bot owner can spawn special Pokémon.")]
-        });
-    }
-
-    const targetUser = message.mentions.users.first() || message.author;
-    const pokemonName = (args[0] || "").toLowerCase();
-
-    if (!pokemonName) {
-        return message.reply({
-            embeds: [chaosEmbed("⚠️ Missing Name", "You must specify a Pokémon name to spawn.")]
-        });
-    }
-
-    // Initialize user storage
-    if (!savedUserPokemon[targetUser.id]) {
-        savedUserPokemon[targetUser.id] = [];
-    }
-
-    // Add Pokémon to user
-    savedUserPokemon[targetUser.id].push(pokemonName);
-    saveData(persistentData);
-
-    const spawnEmbed = new EmbedBuilder()
-        .setColor(0x0f859d)
-        .setTitle("✨ OWNER SPAWN")
-        .setDescription(
-            `👑 **Owner Spawned:** \`${pokemonName}\`\n` +
-            `🎟 **Given To:** ${targetUser}\n\n` +
-            `📦 This Pokémon has been **saved** to their collection.`
-        )
-        .setFooter({ text: "PokeChaos • Special Spawn" })
-    return message.reply({ embeds: [spawnEmbed] });
-};
-
-
-// ===============================
-// SYNC OWNERSPAWN WITH RUNTIME userPokemon
-// ===============================
-
-function syncSavedToRuntime() {
-    Object.keys(savedUserPokemon).forEach((id) => {
-        if (!userPokemon[id]) userPokemon[id] = [];
-        savedUserPokemon[id].forEach((p) => {
-            if (!userPokemon[id].includes(p)) {
-                userPokemon[id].push(p);
-            }
-        });
-    });
-}
-
-// Call once on startup after userPokemon is defined
-syncSavedToRuntime();
 
 // ===============================
 // CATCH (FIXED)
@@ -1037,26 +952,6 @@ commands.hangmanend = async (message) => {
         ]
     });
 };
-
-// ===============================
-// UNIFIED ECONOMY SYSTEM (dbData JSON)
-// ===============================
-
-async function getCoins(userId) {
-    return (await db.get(`coins_${userId}`)) || 0;
-}
-
-async function addCoins(userId, amount) {
-    await db.add(`coins_${userId}`, amount);
-    return await getCoins(userId);
-}
-
-async function removeCoins(userId, amount) {
-    await db.sub(`coins_${userId}`, amount);
-    return await getCoins(userId);
-}
-
-module.exports = { getCoins, addCoins, removeCoins };
 
 // ===============================
 // POKÉCHAOS CASINO LOBBY (HYPER ANIMATED)
@@ -1920,6 +1815,30 @@ commands.trade = async (message, args) => {
 };
 
 // ===============================
+// OWNER SPAWN SYSTEM
+// ===============================
+
+// Simple data file for saving spawned Pokémon
+const DATA_PATH = path.join(__dirname, "pokedata.json");
+
+function loadData() {
+    try {
+        const raw = fs.readFileSync(DATA_PATH, "utf8");
+        return JSON.parse(raw);
+    } catch {
+        return { userPokemon: {} };
+    }
+}
+
+function saveData(data) {
+    fs.writeFileSync(DATA_PATH, JSON.stringify(data, null, 2), "utf8");
+}
+
+let persistentData = loadData();
+if (!persistentData.userPokemon) persistentData.userPokemon = {};
+const savedUserPokemon = persistentData.userPokemon;
+
+// ===============================
 // OWNERSPAWN (SPAWN ANY POKÉMON BY ID OR NAME)
 // ===============================
 
@@ -1968,6 +1887,24 @@ commands.ownerspawn = async (message, args) => {
 
     return message.reply({ embeds: [embed] });
 };
+
+// ===============================
+// SYNC OWNERSPAWN WITH RUNTIME userPokemon
+// ===============================
+
+function syncSavedToRuntime() {
+    Object.keys(savedUserPokemon).forEach((id) => {
+        if (!userPokemon[id]) userPokemon[id] = [];
+        savedUserPokemon[id].forEach((p) => {
+            if (!userPokemon[id].includes(p)) {
+                userPokemon[id].push(p);
+            }
+        });
+    });
+}
+
+// Call once on startup after userPokemon is defined
+syncSavedToRuntime();
 
 // ===============================
 // BATTLE SYSTEM (USING POKÉAPI STATS)
