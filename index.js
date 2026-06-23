@@ -952,6 +952,44 @@ commands.hangmanend = async (message) => {
         ]
     });
 };
+// ===============================
+// POKÉCHAOS CASINO LOBBY BEFORE
+// ===============================
+
+commands.balance = (msg) => {
+    msg.reply(`💰 You have **${getCoins(msg.author.id)}** coins.`);
+};
+
+commands.daily = (msg) => {
+    const id = msg.author.id;
+    const now = Date.now();
+    if (dailyCooldown[id] && now - dailyCooldown[id] < 86400000)
+        return msg.reply("⏳ You already claimed your daily today.");
+
+    dailyCooldown[id] = now;
+    addCoins(id, 5000);
+    msg.reply("🎁 You claimed **5,000 coins**!");
+};
+
+commands.give = (msg, args) => {
+    const target = msg.mentions.users.first();
+    const amount = parseInt(args[1]);
+    if (!target || !amount) return msg.reply("Usage: >give @user amount");
+    if (getCoins(msg.author.id) < amount) return msg.reply("Not enough coins.");
+    removeCoins(msg.author.id, amount);
+    addCoins(target.id, amount);
+    msg.reply(`💸 Gave **${amount}** coins to ${target.username}.`);
+};
+
+commands.leaderboard = (msg) => {
+    const entries = Object.entries(dbData.coins)
+        .sort((a,b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([id, coins], i) => `${i+1}. <@${id}> — **${coins}** coins`)
+        .join("\n");
+
+    msg.reply(`🏆 **Leaderboard**\n${entries}`);
+};
 
 // ===============================
 // POKÉCHAOS CASINO LOBBY (HYPER ANIMATED)
